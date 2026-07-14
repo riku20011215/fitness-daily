@@ -1,0 +1,640 @@
+<!-- FitnessDaily HTML版 -->
+<div id="app"></div>
+<style>
+  :root {
+    --bg: #0F1318; --card: #171D25; --cardsoft: #1D242E; --line: #28313D;
+    --text: #E9EDF1; --sub: #8A96A3; --now: #F5A524; --done: #4ADE80;
+    --red: #F87171; --blue: #60A5FA;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: var(--bg); }
+  #app {
+    min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "SF Pro Display", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    max-width: 430px; margin: 0 auto; padding-bottom: 48px;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  .hdr { padding: 20px 20px 0; background: linear-gradient(180deg, #131920 0%, var(--bg) 100%); }
+  .clock { font-size: 52px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums;
+    font-family: "Avenir Next Condensed", "Futura", -apple-system, sans-serif; letter-spacing: 1px; }
+  .badge { border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; display: inline-block; }
+  .refresh { background: var(--cardsoft); border: 1px solid var(--line); border-radius: 12px;
+    color: var(--text); padding: 10px 14px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .tabs { display: flex; gap: 2px; margin-top: 14px; }
+  .tabbtn { flex: 1; padding: 11px 0; font-size: 13px; font-weight: 700; color: var(--sub);
+    background: transparent; border: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .tabbtn.on { color: var(--text); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+  .cardp { padding: 16px; }
+  .sect { padding: 16px 16px 0; }
+  .stitle { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .input { width: 100%; background: var(--cardsoft); border: 1px solid var(--line); border-radius: 10px;
+    color: var(--text); padding: 10px 12px; font-size: 16px; outline: none; }
+  .lbl { font-size: 12px; color: var(--sub); margin-bottom: 4px; display: block; }
+  .btn { width: 100%; background: var(--now); border: none; border-radius: 12px; color: #0F1318;
+    padding: 13px; font-size: 15px; font-weight: 700; margin-top: 12px; }
+  .chk { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    padding: 13px 16px; background: transparent; border: none; border-top: 1px solid var(--line);
+    color: var(--text); font-size: 14.5px; }
+  .chk:first-child { border-top: none; }
+  .box { width: 22px; height: 22px; min-width: 22px; border-radius: 7px; border: 2px solid var(--line);
+    display: flex; align-items: center; justify-content: center; color: #0F1318; font-size: 14px; font-weight: 800; }
+  .chk.on { color: var(--sub); }
+  .chk.on .box { border-color: var(--done); background: var(--done); }
+  .chk.on .txt { text-decoration: line-through; }
+  .tl { display: flex; gap: 12px; padding: 11px 16px; border-top: 1px solid var(--line); border-left: 3px solid transparent; }
+  .tl:first-child { border-top: none; }
+  .tl.now { background: rgba(245,165,36,0.08); border-left-color: var(--now); }
+  .tl.past { opacity: 0.45; }
+  .tltime { font-size: 13px; color: var(--sub); min-width: 44px; font-variant-numeric: tabular-nums; padding-top: 1px; }
+  .tl.now .tltime { color: var(--now); font-weight: 700; }
+  .calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 8px; }
+  .calcell { background: transparent; border: 2px solid transparent; border-radius: 10px;
+    padding: 6px 0 5px; display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 48px; }
+  .dot { width: 6px; height: 6px; border-radius: 999px; display: inline-block; }
+  .navbtn { background: var(--cardsoft); border: 1px solid var(--line); border-radius: 10px;
+    color: var(--text); padding: 8px 16px; font-size: 15px; }
+  .savedmsg { margin: 12px 16px 0; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.33);
+    color: var(--done); border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 600; }
+  textarea.input { height: 160px; font-size: 12px; line-height: 1.5; font-family: monospace; resize: vertical; }
+</style>
+<script>
+(function () {
+  "use strict";
+
+  // ---------- 保存レイヤー（Claude上=window.storage / それ以外=localStorage） ----------
+  const store = {
+    async get(key) {
+      if (window.storage && window.storage.get) {
+        try { const r = await window.storage.get(key); return r ? r.value : null; }
+        catch { return null; }
+      }
+      try { return localStorage.getItem("fd_" + key); } catch { return null; }
+    },
+    async set(key, value) {
+      if (window.storage && window.storage.set) {
+        try { await window.storage.set(key, value); return true; } catch { return false; }
+      }
+      try { localStorage.setItem("fd_" + key, value); return true; } catch { return false; }
+    },
+  };
+
+  // ---------- 祝日（内閣府公表 2026/2027） ----------
+  const HOLIDAYS = {
+    "2026-01-01": "元日", "2026-01-12": "成人の日", "2026-02-11": "建国記念の日",
+    "2026-02-23": "天皇誕生日", "2026-03-20": "春分の日", "2026-04-29": "昭和の日",
+    "2026-05-03": "憲法記念日", "2026-05-04": "みどりの日", "2026-05-05": "こどもの日",
+    "2026-05-06": "振替休日", "2026-07-20": "海の日", "2026-08-11": "山の日",
+    "2026-09-21": "敬老の日", "2026-09-22": "国民の休日", "2026-09-23": "秋分の日",
+    "2026-10-12": "スポーツの日", "2026-11-03": "文化の日", "2026-11-23": "勤労感謝の日",
+    "2027-01-01": "元日", "2027-01-11": "成人の日", "2027-02-11": "建国記念の日",
+    "2027-02-23": "天皇誕生日", "2027-03-21": "春分の日", "2027-03-22": "振替休日",
+    "2027-04-29": "昭和の日", "2027-05-03": "憲法記念日", "2027-05-04": "みどりの日",
+    "2027-05-05": "こどもの日", "2027-07-19": "海の日", "2027-08-11": "山の日",
+    "2027-09-20": "敬老の日", "2027-09-23": "秋分の日", "2027-10-11": "スポーツの日",
+    "2027-11-03": "文化の日", "2027-11-23": "勤労感謝の日",
+  };
+
+  const DAY_TYPES = {
+    gymA: { label: "ジム日A", sub: "腹筋：プランク", color: "#F5A524" },
+    gymB: { label: "ジム日B・王将デー", sub: "腹筋：ツイストクランチ", color: "#F5A524" },
+    gymC: { label: "ジム日C", sub: "腹筋：プランク／夕食軽め", color: "#F5A524" },
+    rest: { label: "休養日", sub: "超回復を待つ日", color: "#4AA8DE" },
+    free: { label: "自由日", sub: "食事管理なし・計測のみ", color: "#8FDE4A" },
+    holiday: { label: "祝日", sub: "食事管理なし・計測のみ（ジムは自由）", color: "#F87171" },
+  };
+
+  const WD = ["日", "月", "火", "水", "木", "金", "土"];
+  const pad = (n) => String(n).padStart(2, "0");
+  const dk = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const hol = (d) => HOLIDAYS[dk(d)] || null;
+  const M = (h, mi) => h * 60 + mi;
+  const ft = (mins) => pad(Math.floor(mins / 60) % 24) + ":" + pad(mins % 60);
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  function dayTypeOf(d) {
+    if (hol(d)) return "holiday";
+    const w = d.getDay();
+    if (w === 1) return "gymA";
+    if (w === 3) return "gymB";
+    if (w === 5) return "gymC";
+    if (w === 2 || w === 4) return "rest";
+    return "free";
+  }
+
+  function gymBlocks(type) {
+    return [
+      { s: M(8,30), e: M(8,45), t: "起床・水200ml・体重計測", d: "トイレ後・朝食前に計測" },
+      { s: M(8,45), e: M(9,0), t: "出発", d: "" },
+      { s: M(9,0), e: M(9,30), t: "出社・BASE BREAD", d: "チョコ1袋（266kcal / P13.6g）" },
+      { s: M(9,30), e: M(13,0), t: "勤務（前半）", d: "水コップ2杯・1時間ごと立ち上がり" },
+      { s: M(13,0), e: M(13,30), t: "昼食", d: "Claudeと相談（P20g・600〜700kcal）" },
+      { s: M(13,30), e: M(17,30), t: "勤務（後半）", d: "水コップ2杯" },
+      { s: M(17,30), e: M(18,0), t: "間食", d: "おにぎり1個 or バナナ" },
+      { s: M(18,0), e: M(19,0), t: "勤務（ラスト）", d: "" },
+      { s: M(19,0), e: M(19,30), t: "退勤 → JoyFitへ移動", d: "" },
+      { s: M(19,30), e: M(21,15), t: type === "gymB" ? "トレーニング（腹筋B）" : "トレーニング（腹筋A）", d: "「トレ」タブのメニュー参照" },
+      { s: M(21,15), e: M(21,55), t: type === "gymB" ? "プロテイン → 王将へ" : "プロテイン → 夕食購入",
+        d: type === "gymB" ? "餃子2人前＋ライス中" : type === "gymC" ? "軽めをClaudeと相談" : "Claudeと相談" },
+      { s: M(21,55), e: M(22,30), t: "夕食", d: "" },
+      { s: M(22,30), e: M(23,0), t: "入浴＋ストレッチ15分", d: "" },
+      { s: M(23,0), e: M(24,0), t: "自由時間", d: "水も飲む" },
+    ];
+  }
+  function restBlocks() {
+    return [
+      { s: M(8,30), e: M(8,45), t: "起床・水200ml・体重計測", d: "トイレ後・朝食前に計測" },
+      { s: M(8,45), e: M(9,0), t: "出発", d: "" },
+      { s: M(9,0), e: M(9,30), t: "出社・BASE BREAD", d: "チョコ1袋" },
+      { s: M(9,30), e: M(13,0), t: "勤務（前半）", d: "水コップ2杯・1時間ごと立ち上がり" },
+      { s: M(13,0), e: M(13,30), t: "昼食", d: "Claudeと相談（P20g・600〜700kcal）" },
+      { s: M(13,30), e: M(19,0), t: "勤務（後半）", d: "水コップ2杯" },
+      { s: M(19,0), e: M(19,45), t: "退勤 → 夕食購入", d: "Claudeと相談（木曜はオオゼキ自炊も）" },
+      { s: M(19,45), e: M(20,30), t: "夕食", d: "" },
+      { s: M(20,30), e: M(21,0), t: "入浴＋マッサージ20分", d: "" },
+      { s: M(21,0), e: M(24,0), t: "自由時間", d: "" },
+    ];
+  }
+  function freeBlocks(w, isHol) {
+    return [
+      { s: M(8,30), e: M(10,0), t: "起床したら体重計測だけ", d: "食事管理はなし" },
+      { s: M(10,0), e: M(22,0), t: "自由に過ごす",
+        d: isHol ? "祝日。ジムに行くなら空いている昼間が狙い目" : w === 0 ? "飲み会・外食はこの日に寄せる" : "彼女とカフェ等・よく歩く" },
+      { s: M(22,0), e: M(24,0), t: "夜は生活リズムを戻す", d: "24:00就寝で翌日に備える" },
+    ];
+  }
+  const blocksOf = (t, w) =>
+    t === "rest" ? restBlocks() : t === "free" ? freeBlocks(w, false) : t === "holiday" ? freeBlocks(w, true) : gymBlocks(t);
+
+  function checklistOf(t) {
+    const base = [
+      { id: "water", t: "起床後すぐ水コップ1杯" },
+      { id: "weigh", t: "体重計測（起床後・トイレ後・朝食前）" },
+    ];
+    if (t === "free" || t === "holiday") return base.concat([{ id: "walk", t: "よく歩く" }]);
+    const wk = base.concat([
+      { id: "bread", t: "BASE BREAD 1袋" },
+      { id: "water4", t: "勤務中に水コップ4杯（約800ml）" },
+      { id: "lunch", t: "昼食をClaudeと相談" },
+      { id: "dinner", t: "夕食をClaudeと相談" },
+      { id: "sleep", t: "24:00までに就寝" },
+    ]);
+    if (t === "rest") return wk;
+    return wk.slice(0, 7 - 2).concat(
+      [
+        { id: "snack", t: "17:30頃に間食（おにぎり or バナナ）" },
+        { id: "p1", t: "プロテイン①（ストレッチ後）" },
+        { id: "p2", t: "プロテイン②（筋トレ後）" },
+        { id: "p3", t: "プロテイン③（トレッドミル後）" },
+        { id: "train", t: "トレーニング完了" },
+      ],
+      wk.slice(5)
+    );
+  }
+
+  const TRAINING = [
+    { n: "①", t: "ウォームアップ", d: "トレッドミル 傾斜0%・4〜5km/h・5分" },
+    { n: "②", t: "動的ストレッチ 5分", d: "腕回し・股関節回し（静的はやらない）" },
+    { n: "③", t: "スクワット 40kg", d: "バー20+両側10｜3×10｜休憩3分｜高さ28" },
+    { n: "④", t: "ベンチプレス 25kg", d: "バー20+両側2.5｜3×10｜余裕なら+2.5kg" },
+    { n: "⑤", t: "デッドリフト 45kg", d: "バー20+両側12.5｜2×10｜腰に張りが出たら40kg" },
+    { n: "⑥", t: "ラットプルダウン 35kg", d: "3×10｜肩を下げ肘で引く・順手1.5倍" },
+    { n: "⑦A", t: "プランク（月・金）", d: "30〜45秒 × 3セット" },
+    { n: "⑦B", t: "ツイストクランチ（水）", d: "−5度・10回 × 3セット" },
+    { n: "⑧", t: "トレッドミル 40分", d: "会話できるペース｜心拍118〜137｜6.5〜7.5km/h" },
+    { n: "⑨", t: "クールダウン＋静的ストレッチ", d: "10〜15分｜各部位20〜30秒×2" },
+  ];
+
+  // ---------- 状態 ----------
+  const S = {
+    now: new Date(),
+    tab: "today",
+    checked: {},
+    bodyLog: {},
+    gymLog: {},
+    calY: 0, calM: 0, selDate: "",
+    savedMsg: "",
+    exportText: "",
+    copied: false,
+    form: { bDate: "", bW: "", bF: "", bM: "", bNote: "", gDate: "", gSquat: "40", gBench: "25", gDead: "45", gLat: "35", gCardio: "", gNote: "" },
+  };
+
+  async function loadAll() {
+    const key = "check:" + dk(S.now);
+    const c = await store.get(key);
+    S.checked = c ? JSON.parse(c) : {};
+    const b = await store.get("bodylog");
+    S.bodyLog = b ? JSON.parse(b) : {};
+    const g = await store.get("gymlog");
+    S.gymLog = g ? JSON.parse(g) : {};
+  }
+
+  function flash(msg) {
+    S.savedMsg = msg;
+    render();
+    setTimeout(() => { S.savedMsg = ""; render(); }, 2000);
+  }
+
+  // ---------- 描画 ----------
+  function render() {
+    const now = S.now;
+    const todayStr = dk(now);
+    const t = dayTypeOf(now);
+    const holName = hol(now);
+    const info = DAY_TYPES[t];
+    const blocks = blocksOf(t, now.getDay());
+    const list = checklistOf(t);
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const curIdx = blocks.findIndex((b) => nowMin >= b.s && nowMin < b.e);
+    const before = nowMin < blocks[0].s;
+    const after = nowMin >= blocks[blocks.length - 1].e;
+    const prog = Math.min(100, Math.max(0, ((nowMin - blocks[0].s) / (blocks[blocks.length - 1].e - blocks[0].s)) * 100));
+    const doneN = list.filter((c) => S.checked[c.id]).length;
+    const acc = info.color;
+
+    let h = "";
+
+    // ---- ヘッダー ----
+    h += '<div class="hdr">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start">';
+    h += '<div><div style="font-size:13px;color:var(--sub);letter-spacing:1px">' +
+      now.getFullYear() + "年" + (now.getMonth() + 1) + "月" + now.getDate() + "日（" + WD[now.getDay()] + "）" +
+      (holName ? '<span style="color:var(--red);margin-left:6px">' + esc(holName) + "</span>" : "") + "</div>";
+    h += '<div class="clock">' + pad(now.getHours()) + '<span style="color:' + acc + '">:</span>' + pad(now.getMinutes()) + "</div></div>";
+    h += '<button class="refresh" data-act="refresh">↻ 更新</button></div>';
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">';
+    h += '<span class="badge" style="background:' + acc + '22;color:' + acc + ';border:1px solid ' + acc + '55">' +
+      (holName ? "祝日・" + esc(holName) : info.label) + "</span>";
+    h += '<span style="font-size:12px;color:var(--sub)">' + info.sub + "</span></div>";
+    h += '<div style="margin-top:12px"><div style="height:6px;background:var(--cardsoft);border-radius:999px;overflow:hidden">' +
+      '<div style="width:' + prog + "%;height:100%;background:linear-gradient(90deg," + acc + "88," + acc + ');border-radius:999px"></div></div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--sub);margin-top:4px"><span>8:30</span><span>24:00</span></div></div>';
+    h += '<div class="tabs">';
+    [["today","今日"],["log","記録"],["train","トレ"],["cal","カレンダー"],["data","データ"]].forEach(([id, lb]) => {
+      h += '<button class="tabbtn' + (S.tab === id ? " on" : "") + '" data-tab="' + id + '" style="' +
+        (id === "cal" ? "flex:1.4;" : "") + (S.tab === id ? "border-bottom-color:" + acc : "") + '">' + lb + "</button>";
+    });
+    h += "</div></div>";
+    h += '<div style="border-top:1px solid var(--line)"></div>';
+
+    if (S.savedMsg) h += '<div class="savedmsg">' + esc(S.savedMsg) + "</div>";
+
+    // ---- 今日 ----
+    if (S.tab === "today") {
+      h += '<div class="sect"><div class="card cardp" style="' + (curIdx >= 0 ? "border-color:rgba(245,165,36,0.4)" : "") + '">';
+      h += '<div style="font-size:11px;color:var(--now);font-weight:700;letter-spacing:2px">NOW</div>';
+      if (before) {
+        h += '<div style="margin-top:6px"><div style="font-size:18px;font-weight:700">起床前</div>' +
+          '<div style="font-size:13px;color:var(--sub);margin-top:2px">8:30 起床 → 水コップ1杯 → トイレ → 体重計測</div></div>';
+      } else if (after) {
+        h += '<div style="margin-top:6px"><div style="font-size:18px;font-weight:700">就寝時間</div>' +
+          '<div style="font-size:13px;color:var(--sub);margin-top:2px">おつかれさまでした。8:30起床に備えて休んでください</div></div>';
+      } else {
+        const b = blocks[curIdx];
+        h += '<div style="margin-top:6px"><div style="font-size:18px;font-weight:700">' + esc(b.t) + "</div>";
+        if (b.d) h += '<div style="font-size:13px;color:var(--sub);margin-top:2px">' + esc(b.d) + "</div>";
+        h += '<div style="font-size:12px;color:var(--now);margin-top:6px">' + ft(b.s) + " - " + ft(b.e);
+        if (curIdx + 1 < blocks.length) h += '<span style="color:var(--sub)">｜次：' + ft(blocks[curIdx + 1].s) + " " + esc(blocks[curIdx + 1].t) + "</span>";
+        h += "</div></div>";
+      }
+      h += "</div></div>";
+
+      h += '<div class="sect"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">' +
+        '<div class="stitle" style="margin:0">今日のチェック</div>' +
+        '<div style="font-size:12px;color:' + (doneN === list.length ? "var(--done)" : "var(--sub)") + '">' + doneN + " / " + list.length + "</div></div>";
+      h += '<div class="card" style="overflow:hidden">';
+      list.forEach((c) => {
+        const on = !!S.checked[c.id];
+        h += '<button class="chk' + (on ? " on" : "") + '" data-check="' + c.id + '">' +
+          '<span class="box">' + (on ? "✓" : "") + '</span><span class="txt">' + esc(c.t) + "</span></button>";
+      });
+      h += "</div>";
+      if (doneN === list.length) h += '<div style="text-align:center;color:var(--done);font-size:13px;margin-top:10px;font-weight:600">全チェック完了。今日もよくやりました</div>';
+      h += "</div>";
+
+      h += '<div class="sect"><div class="stitle">タイムライン</div><div class="card" style="overflow:hidden">';
+      blocks.forEach((b, i) => {
+        const cls = "tl" + (i === curIdx ? " now" : "") + (nowMin >= b.e ? " past" : "");
+        h += '<div class="' + cls + '"><span class="tltime">' + ft(b.s) + "</span><div>" +
+          '<div style="font-size:14px;font-weight:' + (i === curIdx ? "700" : "500") + '">' + esc(b.t) +
+          (nowMin >= b.e ? ' <span style="color:var(--done);font-size:12px">✓</span>' : "") + "</div>" +
+          (b.d ? '<div style="font-size:12px;color:var(--sub);margin-top:1px">' + esc(b.d) + "</div>" : "") + "</div></div>";
+      });
+      h += "</div></div>";
+
+      h += '<div class="sect"><div class="card cardp" style="background:var(--cardsoft);font-size:12.5px;color:var(--sub);line-height:1.7">' +
+        '<span style="color:var(--text);font-weight:700">目標：65kg・体脂肪率15%</span>（11月下旬〜12月）<br>' +
+        "摂取1,900〜2,000kcal／タンパク質106〜142g／水2.1L<br>減量ペース上限：週0.35〜0.5kg（リコンプ適正範囲）</div></div>";
+    }
+
+    // ---- 記録 ----
+    if (S.tab === "log") {
+      const f = S.form;
+      h += '<div class="sect"><div class="card cardp"><div class="stitle" style="margin-bottom:12px">体組成を記録</div>' +
+        '<label class="lbl">計測日</label><input class="input" type="date" id="bDate" value="' + f.bDate + '">' +
+        '<div style="display:flex;gap:8px;margin-top:10px">' +
+        '<div style="flex:1"><label class="lbl">体重 kg</label><input class="input" type="text" inputmode="decimal" id="bW" placeholder="69.1" value="' + esc(f.bW) + '"></div>' +
+        '<div style="flex:1"><label class="lbl">体脂肪率 %</label><input class="input" type="text" inputmode="decimal" id="bF" placeholder="19.7" value="' + esc(f.bF) + '"></div>' +
+        '<div style="flex:1"><label class="lbl">筋肉量 kg</label><input class="input" type="text" inputmode="decimal" id="bM" placeholder="52.6" value="' + esc(f.bM) + '"></div></div>' +
+        '<div style="margin-top:10px"><label class="lbl">メモ（任意）</label><input class="input" type="text" id="bNote" placeholder="例：食後計測・風邪気味 など" value="' + esc(f.bNote) + '"></div>' +
+        '<button class="btn" data-act="saveBody">体組成を保存</button></div>';
+
+      h += '<div class="card cardp" style="margin-top:16px"><div class="stitle" style="margin-bottom:12px">トレーニングを記録</div>' +
+        '<label class="lbl">実施日</label><input class="input" type="date" id="gDate" value="' + f.gDate + '">' +
+        '<div style="display:flex;gap:8px;margin-top:10px">' +
+        '<div style="flex:1"><label class="lbl">スクワット kg</label><input class="input" type="text" inputmode="decimal" id="gSquat" value="' + esc(f.gSquat) + '"></div>' +
+        '<div style="flex:1"><label class="lbl">ベンチ kg</label><input class="input" type="text" inputmode="decimal" id="gBench" value="' + esc(f.gBench) + '"></div></div>' +
+        '<div style="display:flex;gap:8px;margin-top:10px">' +
+        '<div style="flex:1"><label class="lbl">デッドリフト kg</label><input class="input" type="text" inputmode="decimal" id="gDead" value="' + esc(f.gDead) + '"></div>' +
+        '<div style="flex:1"><label class="lbl">ラットプル kg</label><input class="input" type="text" inputmode="decimal" id="gLat" value="' + esc(f.gLat) + '"></div></div>' +
+        '<div style="margin-top:10px"><label class="lbl">有酸素（距離・時間など）</label><input class="input" type="text" id="gCardio" placeholder="例：5km 40分・歩き混ぜ" value="' + esc(f.gCardio) + '"></div>' +
+        '<div style="margin-top:10px"><label class="lbl">メモ（任意）</label><input class="input" type="text" id="gNote" placeholder="例：スクワット3セット目きつめ" value="' + esc(f.gNote) + '"></div>' +
+        '<button class="btn" data-act="saveGym">トレーニングを保存</button></div></div>';
+    }
+
+    // ---- トレ ----
+    if (S.tab === "train") {
+      h += '<div class="sect"><div class="card" style="overflow:hidden">';
+      TRAINING.forEach((r) => {
+        const dim = (t === "gymB" && r.n === "⑦A") || (t !== "gymB" && r.n === "⑦B");
+        h += '<div style="display:flex;gap:12px;padding:12px 16px;border-top:1px solid var(--line);opacity:' + (dim ? "0.35" : "1") + '">' +
+          '<span style="color:var(--now);font-weight:700;font-size:13px;min-width:28px">' + r.n + "</span>" +
+          '<div><div style="font-size:14.5px;font-weight:600">' + esc(r.t) + '</div><div style="font-size:12px;color:var(--sub);margin-top:1px">' + esc(r.d) + "</div></div></div>";
+      });
+      h += "</div>";
+      h += '<div class="card cardp" style="background:var(--cardsoft);font-size:12.5px;color:var(--sub);margin-top:12px;line-height:1.7">' +
+        "重量UP条件：3セット×10回を「余裕で」完遂 → +2.5〜5kg<br>5回でばてる重量は使わない（筋肥大は6〜12回できる重量）</div></div>";
+    }
+
+    // ---- カレンダー ----
+    if (S.tab === "cal") {
+      const firstDow = new Date(S.calY, S.calM, 1).getDay();
+      const dim = new Date(S.calY, S.calM + 1, 0).getDate();
+      const cells = [];
+      for (let i = 0; i < firstDow; i++) cells.push(null);
+      for (let d = 1; d <= dim; d++) cells.push(d);
+      while (cells.length % 7 !== 0) cells.push(null);
+
+      h += '<div class="sect"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+        '<button class="navbtn" data-act="prevM">‹</button>' +
+        '<div style="font-size:17px;font-weight:700">' + S.calY + "年" + (S.calM + 1) + "月</div>" +
+        '<button class="navbtn" data-act="nextM">›</button></div>';
+
+      h += '<div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px">';
+      WD.forEach((w, i) => {
+        const c = i === 0 ? "var(--red)" : i === 6 ? "var(--blue)" : "var(--sub)";
+        h += '<div style="text-align:center;font-size:11px;font-weight:700;color:' + c + ';padding:4px 0">' + w + "</div>";
+      });
+      h += "</div>";
+
+      h += '<div class="calgrid">';
+      cells.forEach((d, i) => {
+        if (d === null) { h += "<div></div>"; return; }
+        const dObj = new Date(S.calY, S.calM, d);
+        const key = dk(dObj);
+        const hN = HOLIDAYS[key];
+        const ty = dayTypeOf(dObj);
+        const isToday = key === todayStr;
+        const isSel = key === S.selDate;
+        const dow = dObj.getDay();
+        const hasRec = !!(S.bodyLog[key] || S.gymLog[key]);
+        const numC = hN || dow === 0 ? "var(--red)" : dow === 6 ? "var(--blue)" : "var(--text)";
+        const tc = DAY_TYPES[ty].color;
+        h += '<button class="calcell" data-sel="' + key + '" style="' +
+          (isSel ? "background:" + tc + "26;" : "") +
+          (isToday ? "border-color:var(--now);" : isSel ? "border-color:" + tc + "88;" : "") + '">' +
+          '<span style="font-size:14px;font-weight:' + (isToday ? "800" : "500") + ";color:" + numC + ';line-height:1">' + d + "</span>" +
+          '<span style="display:flex;gap:2px;align-items:center"><span class="dot" style="background:' + tc + '"></span>' +
+          (hasRec ? '<span class="dot" style="background:var(--done)"></span>' : "") + "</span>" +
+          (hN ? '<span style="font-size:8px;color:var(--red);line-height:1;white-space:nowrap;overflow:hidden;max-width:100%">' + esc(hN.slice(0, 5)) + "</span>" : "") +
+          "</button>";
+      });
+      h += "</div>";
+
+      h += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--sub)">';
+      [["#F5A524","ジム日（月水金）"],["#4AA8DE","休養日（火木）"],["#8FDE4A","自由日（土日）"],["#F87171","祝日"],["#4ADE80","記録あり"]].forEach(([c, l]) => {
+        h += '<span style="display:flex;align-items:center;gap:4px"><span class="dot" style="width:7px;height:7px;background:' + c + '"></span>' + l + "</span>";
+      });
+      h += "</div>";
+
+      // 選択日詳細
+      const sd = S.selDate;
+      const sObj = new Date(parseInt(sd.slice(0, 4)), parseInt(sd.slice(5, 7)) - 1, parseInt(sd.slice(8, 10)));
+      const sTy = dayTypeOf(sObj);
+      const sHol = hol(sObj);
+      const sInfo = DAY_TYPES[sTy];
+      const sB = S.bodyLog[sd];
+      const sG = S.gymLog[sd];
+      h += '<div class="card cardp" style="margin-top:14px">' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+        '<span style="font-size:15px;font-weight:700">' + parseInt(sd.slice(5, 7)) + "月" + parseInt(sd.slice(8, 10)) + "日（" + WD[sObj.getDay()] + "）</span>" +
+        '<span class="badge" style="background:' + sInfo.color + "22;color:" + sInfo.color + ";border:1px solid " + sInfo.color + '55;font-size:12px;padding:3px 10px">' +
+        (sHol ? "祝日・" + esc(sHol) : sInfo.label) + "</span></div>" +
+        '<div style="font-size:12.5px;color:var(--sub);margin-top:6px">' + sInfo.sub + "</div>" +
+        '<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">' +
+        '<div style="font-size:12px;color:var(--sub);margin-bottom:4px">この日の記録</div>';
+      if (!sB && !sG) {
+        h += '<div style="font-size:13px;color:var(--sub)">記録なし（「記録」タブから日付を指定して入力できます）</div>';
+      } else {
+        h += '<div style="font-size:13.5px;line-height:1.8">';
+        if (sB) {
+          const parts = [];
+          if (sB.w) parts.push("体重" + sB.w + "kg");
+          if (sB.bf) parts.push("体脂肪率" + sB.bf + "%");
+          if (sB.mm) parts.push("筋肉量" + sB.mm + "kg");
+          if (sB.note) parts.push(sB.note);
+          h += '<div><span style="color:var(--now);font-weight:700">体組成：</span>' + esc(parts.join("・")) + "</div>";
+        }
+        if (sG) {
+          const parts = [];
+          if (sG.squat) parts.push("SQ" + sG.squat);
+          if (sG.bench) parts.push("BP" + sG.bench);
+          if (sG.dead) parts.push("DL" + sG.dead);
+          if (sG.lat) parts.push("LAT" + sG.lat);
+          if (sG.cardio) parts.push(sG.cardio);
+          if (sG.note) parts.push(sG.note);
+          h += '<div><span style="color:var(--done);font-weight:700">トレ：</span>' + esc(parts.join("・")) + "</div>";
+        }
+        h += "</div>";
+      }
+      h += "</div></div>";
+      h += '<div style="font-size:11px;color:var(--sub);margin-top:10px;line-height:1.6;padding:0 2px">祝日は内閣府公表の2026年・2027年データに基づき自動判定。祝日は自由日扱い（勤務なし・食事管理なし）で表示します。</div></div>';
+    }
+
+    // ---- データ ----
+    if (S.tab === "data") {
+      h += '<div class="sect"><div class="card cardp"><div class="stitle" style="margin-bottom:4px">Claudeに分析させる</div>' +
+        '<div style="font-size:12.5px;color:var(--sub);line-height:1.6">保存済みの体組成・トレーニング記録・今日のチェック状況をまとめてコピーします。Claudeのチャットに貼り付けて分析を依頼してください。</div>' +
+        '<button class="btn" data-act="export">' + (S.copied ? "✓ コピーしました" : "分析用データをコピー") + "</button>";
+      if (S.exportText) {
+        h += '<div style="margin-top:12px"><label class="lbl">' +
+          (S.copied ? "コピー済み。以下からも選択コピーできます" : "コピーできない場合は以下を長押しで選択してください") + "</label>" +
+          '<textarea class="input" readonly id="exportArea">' + esc(S.exportText) + "</textarea></div>";
+      }
+      h += "</div>";
+
+      const recent = Object.keys(S.bodyLog).sort().slice(-7).reverse();
+      h += '<div class="card cardp" style="margin-top:16px"><div class="stitle">直近の体組成（最大7件）</div>';
+      if (recent.length === 0) {
+        h += '<div style="font-size:13px;color:var(--sub)">まだ記録がありません。「記録」タブから入力してください。</div>';
+      } else {
+        h += '<div style="display:flex;font-size:11px;color:var(--sub);padding-bottom:6px;border-bottom:1px solid var(--line)">' +
+          '<span style="flex:1.4">日付</span><span style="flex:1;text-align:right">体重</span>' +
+          '<span style="flex:1;text-align:right">体脂肪</span><span style="flex:1;text-align:right">筋肉量</span></div>';
+        recent.forEach((d) => {
+          const r = S.bodyLog[d];
+          h += '<div style="display:flex;font-size:13.5px;padding:9px 0;border-bottom:1px solid var(--line)">' +
+            '<span style="flex:1.4;color:var(--sub)">' + d.slice(5).replace("-", "/") + "</span>" +
+            '<span style="flex:1;text-align:right">' + (r.w || "—") + "</span>" +
+            '<span style="flex:1;text-align:right">' + (r.bf ? r.bf + "%" : "—") + "</span>" +
+            '<span style="flex:1;text-align:right">' + (r.mm || "—") + "</span></div>";
+        });
+        h += '<div style="font-size:11.5px;color:var(--sub);margin-top:8px">目標：65.0kg・15.0%。全履歴は「分析用データをコピー」に含まれます。</div>';
+      }
+      h += "</div></div>";
+    }
+
+    document.getElementById("app").innerHTML = h;
+    bindEvents();
+  }
+
+  // ---------- フォーム値の退避 ----------
+  function captureForm() {
+    ["bDate","bW","bF","bM","bNote","gDate","gSquat","gBench","gDead","gLat","gCardio","gNote"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) S.form[id] = el.value;
+    });
+  }
+
+  function buildExport() {
+    const now = S.now;
+    const t = dayTypeOf(now);
+    const holName = hol(now);
+    const info = DAY_TYPES[t];
+    const list = checklistOf(t);
+    const bd = Object.keys(S.bodyLog).sort();
+    const gd = Object.keys(S.gymLog).sort();
+    let txt = "【フィットネス記録データ】\n出力日時：" + now.getFullYear() + "/" + (now.getMonth() + 1) + "/" + now.getDate() +
+      " " + pad(now.getHours()) + ":" + pad(now.getMinutes()) + "\n目標：体重65kg・体脂肪率15%\n\n";
+    txt += "■ 体組成の記録（" + bd.length + "件）\n";
+    if (!bd.length) txt += "（記録なし）\n";
+    bd.forEach((d) => {
+      const r = S.bodyLog[d];
+      const p = [];
+      if (r.w) p.push("体重" + r.w + "kg");
+      if (r.bf) p.push("体脂肪率" + r.bf + "%");
+      if (r.mm) p.push("筋肉量" + r.mm + "kg");
+      if (r.note) p.push("メモ:" + r.note);
+      txt += d + "：" + p.join("・") + "\n";
+    });
+    txt += "\n■ トレーニング記録（" + gd.length + "件）\n";
+    if (!gd.length) txt += "（記録なし）\n";
+    gd.forEach((d) => {
+      const r = S.gymLog[d];
+      const p = [];
+      if (r.squat) p.push("SQ" + r.squat + "kg");
+      if (r.bench) p.push("BP" + r.bench + "kg");
+      if (r.dead) p.push("DL" + r.dead + "kg");
+      if (r.lat) p.push("LAT" + r.lat + "kg");
+      if (r.cardio) p.push("有酸素:" + r.cardio);
+      if (r.note) p.push("メモ:" + r.note);
+      txt += d + "：" + p.join("・") + "\n";
+    });
+    const done = list.filter((c) => S.checked[c.id]).map((c) => c.t);
+    const undone = list.filter((c) => !S.checked[c.id]).map((c) => c.t);
+    txt += "\n■ 今日（" + dk(now) + "・" + (holName ? "祝日:" + holName : info.label) + "）のチェック状況\n完了：" +
+      (done.length ? done.join("／") : "なし") + "\n未完了：" + (undone.length ? undone.join("／") : "なし") +
+      "\n\nこのデータをもとに、進捗の分析と改善アドバイスをお願いします。";
+    return txt;
+  }
+
+  // ---------- イベント ----------
+  function bindEvents() {
+    document.querySelectorAll("[data-tab]").forEach((el) => {
+      el.onclick = () => { captureForm(); S.tab = el.dataset.tab; render(); };
+    });
+    document.querySelectorAll("[data-check]").forEach((el) => {
+      el.onclick = async () => {
+        const id = el.dataset.check;
+        S.checked[id] = !S.checked[id];
+        render();
+        await store.set("check:" + dk(S.now), JSON.stringify(S.checked));
+      };
+    });
+    document.querySelectorAll("[data-sel]").forEach((el) => {
+      el.onclick = () => { S.selDate = el.dataset.sel; render(); };
+    });
+    document.querySelectorAll("[data-act]").forEach((el) => {
+      el.onclick = async () => {
+        const act = el.dataset.act;
+        if (act === "refresh") {
+          captureForm();
+          const d = new Date();
+          S.now = d;
+          S.calY = d.getFullYear();
+          S.calM = d.getMonth();
+          await loadAll();
+          render();
+        }
+        if (act === "prevM" || act === "nextM") {
+          let y = S.calY, mo = S.calM + (act === "nextM" ? 1 : -1);
+          if (mo < 0) { mo = 11; y--; }
+          if (mo > 11) { mo = 0; y++; }
+          S.calY = y; S.calM = mo;
+          render();
+        }
+        if (act === "saveBody") {
+          captureForm();
+          const f = S.form;
+          if (!f.bW && !f.bF && !f.bM) { flash("数値を入力してください"); return; }
+          S.bodyLog[f.bDate] = { w: f.bW || null, bf: f.bF || null, mm: f.bM || null, note: f.bNote || "" };
+          const ok = await store.set("bodylog", JSON.stringify(S.bodyLog));
+          S.form.bNote = "";
+          flash(ok ? "体組成を保存しました" : "保存に失敗しました");
+        }
+        if (act === "saveGym") {
+          captureForm();
+          const f = S.form;
+          S.gymLog[f.gDate] = { squat: f.gSquat || null, bench: f.gBench || null, dead: f.gDead || null, lat: f.gLat || null, cardio: f.gCardio || "", note: f.gNote || "" };
+          const ok = await store.set("gymlog", JSON.stringify(S.gymLog));
+          S.form.gCardio = ""; S.form.gNote = "";
+          flash(ok ? "トレーニングを保存しました" : "保存に失敗しました");
+        }
+        if (act === "export") {
+          S.exportText = buildExport();
+          try {
+            await navigator.clipboard.writeText(S.exportText);
+            S.copied = true;
+          } catch { S.copied = false; }
+          render();
+          setTimeout(() => { S.copied = false; render(); }, 2500);
+        }
+      };
+    });
+    const ta = document.getElementById("exportArea");
+    if (ta) ta.onfocus = () => ta.select();
+  }
+
+  // ---------- 初期化 ----------
+  (async function init() {
+    const d = new Date();
+    S.now = d;
+    S.calY = d.getFullYear();
+    S.calM = d.getMonth();
+    S.selDate = dk(d);
+    S.form.bDate = dk(d);
+    S.form.gDate = dk(d);
+    await loadAll();
+    render();
+    setInterval(() => {
+      const prev = dk(S.now);
+      S.now = new Date();
+      if (S.tab === "today" || prev !== dk(S.now)) {
+        if (prev !== dk(S.now)) loadAll().then(render);
+        else render();
+      }
+    }, 15000);
+  })();
+})();
+</script>
