@@ -109,9 +109,9 @@
   };
 
   const DAY_TYPES = {
-    gymA: { label: "ジム日A", sub: "腹筋：プランク", color: "#F5A524" },
+    gymA: { label: "ジム日A", sub: "腹筋：ツイストクランチ", color: "#F5A524" },
     gymB: { label: "ジム日B・王将デー", sub: "腹筋：ツイストクランチ", color: "#F5A524" },
-    gymC: { label: "ジム日C", sub: "腹筋：プランク／夕食軽め", color: "#F5A524" },
+    gymC: { label: "ジム日C", sub: "腹筋：ツイストクランチ／夕食軽め", color: "#F5A524" },
     rest: { label: "休養日", sub: "超回復を待つ日", color: "#4AA8DE" },
     free: { label: "自由日", sub: "食事管理なし・計測のみ", color: "#8FDE4A" },
     holiday: { label: "祝日", sub: "食事管理なし・計測のみ（ジムは自由）", color: "#F87171" },
@@ -146,7 +146,7 @@
       { s: M(17,30), e: M(18,0), t: "間食", d: "おにぎり1個 or バナナ" },
       { s: M(18,0), e: M(19,0), t: "勤務（ラスト）", d: "" },
       { s: M(19,0), e: M(19,30), t: "退勤 → JoyFitへ移動", d: "" },
-      { s: M(19,30), e: M(21,15), t: type === "gymB" ? "トレーニング（腹筋B）" : "トレーニング（腹筋A）", d: "「トレ」タブのメニュー参照" },
+      { s: M(19,30), e: M(21,15), t: "トレーニング一式", d: "「トレ」タブのメニュー参照" },
       { s: M(21,15), e: M(21,55), t: type === "gymB" ? "プロテイン → 王将へ" : "プロテイン → 夕食購入",
         d: type === "gymB" ? "餃子2人前＋ライス中" : type === "gymC" ? "軽めをClaudeと相談" : "Claudeと相談" },
       { s: M(21,55), e: M(22,30), t: "夕食", d: "" },
@@ -208,13 +208,12 @@
   const TRAINING = [
     { n: "①", t: "ウォームアップ", d: "トレッドミル 傾斜0%・4〜5km/h・5分" },
     { n: "②", t: "動的ストレッチ 5分", d: "腕回し・股関節回し（静的はやらない）" },
-    { n: "③", t: "スクワット 40kg", d: "バー20+両側10｜3×10｜休憩3分｜高さ28" },
-    { n: "④", t: "ベンチプレス 25kg", d: "バー20+両側2.5｜3×10｜余裕なら+2.5kg" },
-    { n: "⑤", t: "デッドリフト 45kg", d: "バー20+両側12.5｜2×10｜腰に張りが出たら40kg" },
-    { n: "⑥", t: "ラットプルダウン 35kg", d: "3×10｜肩を下げ肘で引く・順手1.5倍" },
-    { n: "⑦A", t: "プランク（月・金）", d: "30〜45秒 × 3セット" },
-    { n: "⑦B", t: "ツイストクランチ（水）", d: "−5度・10回 × 3セット" },
-    { n: "⑧", t: "トレッドミル 40分", d: "会話できるペース｜心拍118〜137｜6.5〜7.5km/h" },
+    { n: "③", t: "ベンチプレス 30kg", d: "バー20+両側5｜3×10｜余裕なら+2.5kg" },
+    { n: "④", t: "スクワット 40kg", d: "バー20+両側10｜3×10｜高さ28" },
+    { n: "⑤", t: "デッドリフト 50kg", d: "バー20+両側15｜1×10｜腰に張りが出たら45kgに戻す" },
+    { n: "⑥", t: "ツイストクランチ（毎ジム日）", d: "−5度・肘を反対の膝へ・10回 × 3セット" },
+    { n: "⑦", t: "ラットプルダウン 35kg", d: "3×10｜肩を下げ肘で引く・順手1.5倍" },
+    { n: "⑧", t: "トレッドミル 傾斜ウォーク", d: "傾斜10%・4.5〜5.0km/h・3km（約36〜40分）｜手すりは持たない｜きつければ傾斜6〜8%に" },
     { n: "⑨", t: "クールダウン＋静的ストレッチ", d: "10〜15分｜各部位20〜30秒×2" },
   ];
 
@@ -229,7 +228,7 @@
     savedMsg: "",
     exportText: "",
     copied: false,
-    form: { bDate: "", bW: "", bF: "", bM: "", bNote: "", gDate: "", gSquat: "40", gBench: "25", gDead: "45", gLat: "35", gCardio: "", gNote: "" },
+    form: { bDate: "", bW: "", bF: "", bM: "", bNote: "", gDate: "", gSquat: "40", gBench: "30", gDead: "50", gLat: "35", gCardio: "", gNote: "" },
   };
 
   async function loadAll() {
@@ -369,14 +368,14 @@
     if (S.tab === "train") {
       h += '<div class="sect"><div class="card" style="overflow:hidden">';
       TRAINING.forEach((r) => {
-        const dim = (t === "gymB" && r.n === "⑦A") || (t !== "gymB" && r.n === "⑦B");
+        const dim = false;
         h += '<div style="display:flex;gap:12px;padding:12px 16px;border-top:1px solid var(--line);opacity:' + (dim ? "0.35" : "1") + '">' +
           '<span style="color:var(--now);font-weight:700;font-size:13px;min-width:28px">' + r.n + "</span>" +
           '<div><div style="font-size:14.5px;font-weight:600">' + esc(r.t) + '</div><div style="font-size:12px;color:var(--sub);margin-top:1px">' + esc(r.d) + "</div></div></div>";
       });
       h += "</div>";
       h += '<div class="card cardp" style="background:var(--cardsoft);font-size:12.5px;color:var(--sub);margin-top:12px;line-height:1.7">' +
-        "重量UP条件：3セット×10回を「余裕で」完遂 → +2.5〜5kg<br>5回でばてる重量は使わない（筋肥大は6〜12回できる重量）</div></div>";
+        "セット間休憩：一律2分（3セット目の回数が落ちる種目のみ2.5〜3分に延長）<br>重量UP条件：3セット×10回を「余裕で」完遂 → +2.5〜5kg<br>5回でばてる重量は使わない（筋肥大は6〜12回できる重量）</div></div>";
     }
 
     // ---- カレンダー ----
