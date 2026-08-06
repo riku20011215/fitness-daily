@@ -19,14 +19,20 @@
     --pushA: #F5A524; --pushB: #FB923C; --pullA: #A78BFA; --pullB: #818CF8;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; background: var(--bg); }
+  html, body { margin: 0; background: #131920; }
   #app {
     min-height: 100vh; background: var(--bg); color: var(--text);
     font-family: -apple-system, "SF Pro Display", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
-    max-width: 430px; margin: 0 auto; padding-bottom: 48px;
+    max-width: 430px; margin: 0 auto;
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
   button { font-family: inherit; cursor: pointer; }
-  .hdr { padding: 20px 20px 0; background: linear-gradient(180deg, #131920 0%, var(--bg) 100%); }
+  .hdr {
+    padding: calc(env(safe-area-inset-top, 0px) + 32px) 20px 0;
+    background: linear-gradient(180deg, #131920 0%, var(--bg) 100%);
+  }
   .clock { font-size: 52px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums;
     font-family: "Avenir Next Condensed", "Futura", -apple-system, sans-serif; letter-spacing: 1px; }
   .badge { border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; display: inline-block; }
