@@ -15,7 +15,8 @@
   :root {
     --bg: #0F1318; --card: #171D25; --cardsoft: #1D242E; --line: #28313D;
     --text: #E9EDF1; --sub: #8A96A3; --now: #F5A524; --done: #4ADE80;
-    --red: #F87171; --blue: #60A5FA; --push: #F5A524; --pull: #A78BFA; --legs: #34D399;
+    --red: #F87171; --blue: #60A5FA;
+    --pushA: #F5A524; --pushB: #FB923C; --pullA: #A78BFA; --pullB: #818CF8;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; background: var(--bg); }
@@ -70,10 +71,11 @@
   .savedmsg { margin: 12px 16px 0; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.33);
     color: var(--done); border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 600; }
   textarea.input { height: 200px; font-size: 12px; line-height: 1.5; font-family: monospace; resize: vertical; }
-  .seg { display: flex; gap: 4px; background: var(--cardsoft); border: 1px solid var(--line);
-    border-radius: 12px; padding: 4px; }
-  .segbtn { flex: 1; padding: 9px 0; font-size: 13px; font-weight: 700; border: none;
-    background: transparent; color: var(--sub); border-radius: 9px; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--cardsoft);
+    border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+  .segbtn { padding: 7px 0 8px; font-size: 12px; font-weight: 700; border: none;
+    background: transparent; color: var(--sub); border-radius: 9px; line-height: 1.35; }
+  .segday { display: block; font-size: 10px; font-weight: 600; opacity: 0.75; }
   .exrow { padding: 12px 16px; border-top: 1px solid var(--line); }
   .exrow:first-child { border-top: none; }
   .exhead { display: flex; gap: 10px; align-items: baseline; }
@@ -92,6 +94,8 @@
   .mini { font-size: 11px; color: var(--sub); margin-bottom: 3px; display: block; }
   .input.sm { padding: 8px 10px; font-size: 15px; }
   .trigbar { height: 8px; background: var(--cardsoft); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+  .volrow { display: flex; font-size: 13px; padding: 7px 0; border-top: 1px solid var(--line); }
+  .volrow:first-child { border-top: none; }
 </style>
 <script>
 (function () {
@@ -129,14 +133,18 @@
     "2027-11-03":"文化の日","2027-11-23":"勤労感謝の日",
   };
 
+  /* ============ 日タイプ（月火木金の4分割・水は残業休養） ============ */
   const DAY_TYPES = {
-    push:    { label:"プッシュ",   sub:"胸・肩・三頭",                 color:"var(--push)", raw:"#F5A524" },
-    pull:    { label:"プル",       sub:"背中・二頭／夜は餃子の王将",   color:"var(--pull)", raw:"#A78BFA" },
-    legs:    { label:"レッグ",     sub:"脚・ふくらはぎ／有酸素はバイク", color:"var(--legs)", raw:"#34D399" },
-    rest:    { label:"休養日",     sub:"超回復を待つ日",               color:"#4AA8DE",     raw:"#4AA8DE" },
-    free:    { label:"自由日",     sub:"食事は緩め・計測とサプリは継続", color:"#8FDE4A",    raw:"#8FDE4A" },
-    holiday: { label:"祝日",       sub:"食事管理なし・計測は継続",     color:"#F87171",     raw:"#F87171" },
+    pushA:   { label:"プッシュA", short:"プッシュA", day:"月", sub:"胸・肩・三頭＋スクワット",   raw:"#F5A524" },
+    pullA:   { label:"プルA",     short:"プルA",     day:"火", sub:"背中・二頭（垂直引き）",     raw:"#A78BFA" },
+    pushB:   { label:"プッシュB", short:"プッシュB", day:"木", sub:"胸・肩・三頭＋ルーマニアンDL", raw:"#FB923C" },
+    pullB:   { label:"プルB",     short:"プルB",     day:"金", sub:"背中・二頭（水平引き）＋レッグカール", raw:"#818CF8" },
+    rest:    { label:"休養日",    short:"休養",      day:"水", sub:"残業日／夜は餃子の王将",     raw:"#4AA8DE" },
+    free:    { label:"自由日",    short:"自由",      day:"土日", sub:"食事は緩め・計測とサプリは継続", raw:"#8FDE4A" },
+    holiday: { label:"祝日",      short:"祝日",      day:"—",  sub:"食事管理なし・計測は継続",   raw:"#F87171" },
   };
+
+  const GYM_ORDER = ["pushA", "pullA", "pushB", "pullB"];
 
   const WD = ["日","月","火","水","木","金","土"];
   const pad = (n) => String(n).padStart(2, "0");
@@ -149,145 +157,203 @@
   function dayTypeOf(d) {
     if (hol(d)) return "holiday";
     const w = d.getDay();
-    if (w === 1) return "push";
-    if (w === 3) return "pull";
-    if (w === 5) return "legs";
-    if (w === 2 || w === 4) return "rest";
+    if (w === 1) return "pushA";
+    if (w === 2) return "pullA";
+    if (w === 3) return "rest";
+    if (w === 4) return "pushB";
+    if (w === 5) return "pullB";
     return "free";
   }
-  const isGym = (t) => t === "push" || t === "pull" || t === "legs";
+  const isGym = (t) => GYM_ORDER.indexOf(t) >= 0;
 
-  /* ============ トレーニングメニュー v6.1 ============ */
+  /* ============ トレーニングメニュー v7（4分割・上半身メイン） ============ */
   const MENUS = {
-    push: {
+    pushA: {
       day: "月曜",
-      total: "合計19セット／所要85〜90分",
+      total: "21セット／トレ90分",
+      vol: "胸7・肩6・三頭3・四頭3・腹2",
       rows: [
-        ["①","動的ストレッチ","腕回し・股関節回し（静的はやらない）","5分","—"],
+        ["①","動的ストレッチ","腕回し・股関節回し・レッグスイング（静的はやらない）","5分","—"],
         ["②","ベンチプレス ★伸ばす日","計40kg（バー20＋両側10）","4 × 8〜12","3分"],
-        ["③","インクラインダンベルプレス","片手9kg／ベンチ角度30度","3 × 8〜12","3分"],
-        ["④","ショルダープレス（スミス）","計35kg（バー20＋片側7.5）／背もたれ85度／セーフティ高さ11","3 × 8〜12","3分"],
-        ["⑤","サイドレイズ","片手5kg","3 × 12〜15","2分"],
-        ["⑥","トライセプス・プレスダウン","ロープ・15kg／高さ31","3 × 10〜15","2分"],
-        ["⑦","クランチ","−20度・重り5kg／足の高さ1","3 × 10〜15","2分"],
-        ["⑧","有酸素","トレッドミル 傾斜10%・4.5km/h","15〜20分","—"],
-        ["⑨","静的ストレッチ","胸・三頭・肩・広背筋／各20〜30秒×2","10分","—"],
+        ["③","インクラインダンベルプレス","片手9kg／ベンチ角度30度","3 × 8〜12","2分"],
+        ["④","スクワット","計45kg（バー20＋両側12.5）／ラック高さ28／セーフティ高さ（初回に記録）","3 × 8〜12","3分"],
+        ["⑤","ショルダープレス（スミス）","計35kg（バー20＋片側7.5）／背もたれ85度／セーフティ高さ11","3 × 8〜12","2分"],
+        ["⑥","サイドレイズ","片手5kg","3 × 12〜15","90秒"],
+        ["⑦","トライセプス・プレスダウン","ロープ・15kg／高さ31","3 × 10〜15","90秒"],
+        ["⑧","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","60秒"],
+        ["⑨","有酸素","トレッドミル 傾斜10%・4.5km/h","17分","—"],
+        ["⑩","静的ストレッチ","胸・肩・三頭・四頭／各20〜30秒×2","10分","—"],
       ],
       memo: [
-        "②が4セット全部12回に届いたら、<b>月水金とも42.5kgに上げて8回スタートに戻す</b>。8/3は12/12/12/10で4セット目が届かず同重量継続",
+        "②が4セット全部12回に届いたら、<b>月木とも42.5kgに上げて8回スタートに戻す</b>。8/3は12/12/12/10で4セット目が届かず同重量継続",
         "②は3セット目からフォームが崩れやすい。各セット1〜2回残す感覚で通す",
-        "④のスミスのバー重量は「おそらく20kg」のまま。<b>プレートを外した状態で実測を確認する</b>",
-        "⑤5kgは現状かなりきつい。重量は据え置きで15回まで積む",
-        "⑥は少し尻を引いて肘が90度になる高さ（31）",
-        "⑦足のパッド位置を上げても腹筋の負荷は上がらない。強度は 回数15回 → 重り7.5kg → 傾斜−25度 の順で上げる",
+        "④は太もも床平行の深さをキープ。<b>プッシュ日に置くのは、腰と握力が温存されているうちに済ませるため</b>。セーフティは最下点より少し下に設定して位置番号を記録する",
+        "⑤のスミスのバー重量は「おそらく20kg」のまま。<b>プレートを外した状態で実測を確認する</b>",
+        "⑥5kgは現状かなりきつい。重量は据え置きで15回まで積む",
+        "⑦は少し尻を引いて肘が90度になる高さ（31）。木曜のオーバーヘッドと肘の位置が逆で、こちらは三頭が縮んだ側で効く",
+        "<b>⑥と⑦は交互に回すと時短になる</b>",
       ],
     },
-    pull: {
-      day: "水曜",
-      total: "合計21セット／所要95分",
+    pullA: {
+      day: "火曜",
+      total: "17セット／トレ72分",
+      vol: "背中7・肩後3・二頭系5・腹2",
       rows: [
-        ["①","動的ストレッチ","腕回し・股関節回し","5分","—"],
+        ["①","動的ストレッチ","腕回し・肩甲骨まわり","5分","—"],
+        ["②","ラットプルダウン","40kg／シート高さ（初回に記録）／パッド位置（初回に記録）","4 × 8〜12","3分"],
+        ["③","ダンベルロー","片手14〜16kg／ベンチ角度（初回に記録）","3 × 8〜12","2分"],
+        ["④","リバースフライ","ペクトラルマシン／シート高さ（初回に記録）／アーム開始位置（初回に記録）","3 × 12〜15","90秒"],
+        ["⑤","インクラインダンベルカール","片手6〜8kg／ベンチ角度（初回に記録）","3 × 8〜12","90秒"],
+        ["⑥","ハンマーカール","片手6〜8kg","2 × 10〜15","90秒"],
+        ["⑦","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","60秒"],
+        ["⑧","有酸素","トレッドミル 傾斜10%・4.5km/h","15分","—"],
+        ["⑨","静的ストレッチ","広背筋・二頭・前腕","10分","—"],
+      ],
+      memo: [
+        "②は肩を下げ、肘で引く。順手・肩幅1.5倍",
+        "<b>②③④⑤のマシン・ベンチ設定は初回に必ず記録する。</b>設定が変わると重量の比較が成立しない",
+        "⑤インクラインは上腕が体の後ろに来るので、二頭長頭が伸びた位置で負荷が乗る。フラットより有利",
+        "⑥ハンマーは腕橈骨筋と上腕筋。二頭の下に潜り込む筋肉なので腕の太さに効く",
+        "<b>④と⑤は交互に回すと時短になる</b>",
+      ],
+    },
+    pushB: {
+      day: "木曜",
+      total: "19セット／トレ82分",
+      vol: "胸5・肩6・三頭3・ハム3・腹2",
+      rows: [
+        ["①","動的ストレッチ","腕回し・股関節回し・レッグスイング","5分","—"],
         ["②","ベンチプレス ★維持の日","計40kg（バー20＋両側10）","3 × 8〜12","3分"],
-        ["③","ルーマニアンデッドリフト","計40〜50kg","3 × 8〜10","3分"],
-        ["④","ラットプルダウン","40kg／シート高さ（初回に記録）／パッド位置（初回に記録）","4 × 8〜12","3分"],
-        ["⑤","ダンベルロー or ケーブルシーテッドロー","片手14〜16kg","3 × 8〜12","3分"],
-        ["⑥","リバースフライ","ペクトラルマシン／シート高さ（初回に記録）／アーム開始位置（初回に記録）","3 × 12〜15","2分"],
-        ["⑦","インクラインダンベルカール or プリチャーカール","片手6〜8kg／ベンチ角度（初回に記録）","3 × 8〜12","2分"],
-        ["⑧","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","2分"],
+        ["③","インクラインダンベルプレス","片手9kg／ベンチ角度30度","2 × 8〜12","2分"],
+        ["④","ルーマニアンデッドリフト","計40〜50kg","3 × 8〜10","3分"],
+        ["⑤","ショルダープレス（スミス）","計35kg（バー20＋片側7.5）／背もたれ85度／セーフティ高さ11","3 × 8〜12","2分"],
+        ["⑥","サイドレイズ","片手5kg","3 × 12〜15","90秒"],
+        ["⑦","オーバーヘッド・トライセプスエクステンション","ダンベル両手持ち or ケーブル／重量（初回に記録）","3 × 10〜15","90秒"],
+        ["⑧","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","60秒"],
         ["⑨","有酸素","トレッドミル 傾斜10%・4.5km/h","15分","—"],
-        ["⑩","静的ストレッチ","広背筋・二頭・腰・ハム","10分","—"],
+        ["⑩","静的ストレッチ","胸・肩・三頭・ハム","10分","—"],
       ],
       memo: [
-        "②は月曜と同じ40kg。3セットで維持が目的なので追い込まない。きつければ37.5kgに落とす",
-        "③は膝を軽く曲げたまま固定し、尻を後ろに引く。ハムのストレッチを感じる所で折り返す",
-        "④は肩を下げ、肘で引く。順手・肩幅1.5倍",
-        "<b>④⑥⑦のマシン設定は初回に必ず記録する</b>",
-        "夜は餃子の王将（餃子2人前＋ライス中）。昼を軽めに調整する",
+        "②は維持が目的なので追い込まない。きつければ37.5kgに落として回数優先",
+        "④は膝を軽く曲げたまま固定し、尻を後ろに引く。ハムのストレッチを感じる所で折り返す",
+        "④<b>握力が先に落ちるならストラップを使う。</b>手が制限要因になっている状態は、ハムではなく握力を鍛えているだけ",
+        "⑦は肘が頭上＝三頭長頭が伸びた位置で負荷がかかる。月曜のプレスダウンと役割が違うので、両方やる意味がある",
+        "<b>⑥と⑦は交互に回すと時短になる</b>",
       ],
     },
-    legs: {
+    pullB: {
       day: "金曜",
-      total: "合計21セット／所要95〜100分",
+      total: "17セット／トレ73分",
+      vol: "背中7・肩後3・二頭3・ハム2・腹2",
       rows: [
-        ["①","動的ストレッチ","股関節・足首を重点的に","5分","—"],
-        ["②","ベンチプレス ★維持の日","計40kg（バー20＋両側10）","3 × 8〜12","3分"],
-        ["③","スクワット","計45kg（バー20＋両側12.5）／ラック高さ28／セーフティ高さ（初回に記録）","4 × 8〜12","3分"],
-        ["④","レッグプレス","重量（初回に記録）／シート位置（初回に記録）","3 × 10〜15","3分"],
-        ["⑤","レッグエクステンション","重量（初回に記録）／背もたれ・足首パッド位置（初回に記録）","3 × 12〜15","2分"],
-        ["⑥","レッグカール","重量（初回に記録）／パッド位置（初回に記録）","3 × 10〜15","2分"],
-        ["⑦","カーフレイズ","スミス or ダンベル／重量（初回に記録）","3 × 12〜20","2分"],
-        ["⑧","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","2分"],
-        ["⑨","有酸素","<b>バイク推奨。ランは避ける</b>","15分","—"],
-        ["⑩","静的ストレッチ","四頭・ハム・ふくらはぎ・臀部","10〜15分","—"],
+        ["①","動的ストレッチ","腕回し・肩甲骨まわり","5分","—"],
+        ["②","ケーブルシーテッドロー","空いてなければダンベルロー／重量（初回に記録）","4 × 8〜12","3分"],
+        ["③","ラットプルダウン","40kg／シート高さ・パッド位置は火曜と同じ設定で","3 × 8〜12","2〜3分"],
+        ["④","リバースフライ","ペクトラルマシン／設定は火曜と同じ","3 × 12〜15","90秒"],
+        ["⑤","プリチャーカール","重量（初回に記録）／シート高さ（初回に記録）","3 × 8〜12","90秒"],
+        ["⑥","レッグカール","重量（初回に記録）／パッド位置（初回に記録）","2 × 10〜15","90秒"],
+        ["⑦","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","60秒"],
+        ["⑧","有酸素","トレッドミル 傾斜10%・4.5km/h","15分","—"],
+        ["⑨","静的ストレッチ","広背筋・二頭・ハム","10分","—"],
       ],
       memo: [
-        "③は太もも床平行の深さをキープ。セーフティは最下点より少し下に設定して位置番号を記録する",
-        "<b>④〜⑦は初回。まず10〜15回できる重量を探り、決まったらメニューを書き換える</b>",
-        "⑦はかかとを深く下ろす",
-        "下半身の重量UPは+5kg刻み",
+        "②は肩甲骨を寄せてから肘を引く。先に腕で引くと背中に乗らない",
+        "⑥<b>大腿二頭筋短頭は膝しかまたがないので、木曜のルーマニアンDLでは刺激が入らない。</b>ここで埋める2セット",
+        "<b>④と⑤は交互に回すと時短になる</b>",
+        "②⑤⑥は初回に重量と設定を記録する",
       ],
     },
   };
 
   const COMMON_RULES =
     "<b>追い込み度</b>：限界の1〜2回手前（RIR1〜2）。単関節はRIR0〜1<br>" +
-    "<b>重量UP</b>：全セットが上限レップに届いたら 上半身+2.5kg／下半身+5kg。下限レップに戻す<br>" +
-    "<b>セット間休憩</b>：コンパウンド3分／単関節・腹筋2分<br>" +
-    "<b>種目間休憩</b>：一律3分（前種目の最終セット終了→次種目の1セット目開始。移動・重量セット込み）<br>" +
-    "腹筋は必ず最後。有酸素は筋トレの後。5回でばてる重量は使わない";
+    "<b>重量UP</b>：全セットが上限レップに届いたら 上半身+2.5kg／下半身+5kg。届いたら下限レップに戻す<br>" +
+    "<b>セット間休憩</b>：メニュー表の表記どおり（コンパウンド3分／中間種目2分／単関節90秒／腹筋60秒）<br>" +
+    "<b>種目間休憩</b>：移動・重量セット込みで3分目安<br>" +
+    "腹筋は必ず最後。有酸素は筋トレの後。5回でばてる重量は使わない<br>" +
+    "<b>最初の2週は</b>火曜と金曜の単関節種目を各1セット落とす。背中7→14・二頭3→8と倍増するので、いきなりフルは踏まない";
+
+  const WEEK_VOL = [
+    ["胸", "13", "12"],
+    ["背中", "7", "14"],
+    ["肩 前・中部", "6", "12"],
+    ["肩 後部", "3", "6"],
+    ["上腕三頭筋", "3", "6"],
+    ["上腕二頭筋系", "3", "8"],
+    ["腹筋", "7", "8"],
+    ["大腿四頭筋", "10", "3"],
+    ["ハムストリング", "6", "5"],
+  ];
 
   /* ============ 記録タブの種目定義 ============ */
   const LOG_EX = {
-    push: [
-      { k:"bench",    n:"ベンチプレス",        w:"40",   u:"計kg" },
-      { k:"incline",  n:"インクラインDBプレス", w:"9",    u:"片手kg" },
-      { k:"shoulder", n:"ショルダープレス",     w:"35",   u:"計kg" },
-      { k:"side",     n:"サイドレイズ",        w:"5",    u:"片手kg" },
-      { k:"pushdown", n:"プレスダウン",        w:"15",   u:"kg" },
-      { k:"crunch",   n:"クランチ",            w:"5",    u:"kg" },
-      { k:"cardio",   n:"有酸素",              w:"10%/4.5", u:"傾斜/速度", ph:"15分" },
+    pushA: [
+      { k:"bench",    n:"ベンチプレス",         w:"40", u:"計kg" },
+      { k:"incline",  n:"インクラインDBプレス",  w:"9",  u:"片手kg" },
+      { k:"squat",    n:"スクワット",           w:"45", u:"計kg" },
+      { k:"shoulder", n:"ショルダープレス",      w:"35", u:"計kg" },
+      { k:"side",     n:"サイドレイズ",         w:"5",  u:"片手kg" },
+      { k:"pushdown", n:"プレスダウン",         w:"15", u:"kg" },
+      { k:"crunch",   n:"クランチ",             w:"5",  u:"kg" },
+      { k:"cardio",   n:"有酸素",               w:"10%/4.5", u:"傾斜/速度", ph:"17分" },
     ],
-    pull: [
-      { k:"bench",   n:"ベンチプレス",   w:"40", u:"計kg" },
-      { k:"rdl",     n:"ルーマニアンDL", w:"40", u:"計kg" },
-      { k:"lat",     n:"ラットプルダウン", w:"40", u:"kg" },
-      { k:"row",     n:"ロー",           w:"14", u:"片手kg" },
-      { k:"revfly",  n:"リバースフライ", w:"",   u:"kg" },
-      { k:"curl",    n:"カール",         w:"6",  u:"片手kg" },
-      { k:"crunch",  n:"クランチ",       w:"5",  u:"kg" },
-      { k:"cardio",  n:"有酸素",         w:"10%/4.5", u:"傾斜/速度", ph:"15分" },
+    pullA: [
+      { k:"lat",     n:"ラットプルダウン",       w:"40", u:"kg" },
+      { k:"row",     n:"ダンベルロー",          w:"14", u:"片手kg" },
+      { k:"revfly",  n:"リバースフライ",        w:"",   u:"kg" },
+      { k:"curl",    n:"インクラインDBカール",   w:"6",  u:"片手kg" },
+      { k:"hammer",  n:"ハンマーカール",        w:"6",  u:"片手kg" },
+      { k:"crunch",  n:"クランチ",              w:"5",  u:"kg" },
+      { k:"cardio",  n:"有酸素",                w:"10%/4.5", u:"傾斜/速度", ph:"15分" },
     ],
-    legs: [
-      { k:"bench",   n:"ベンチプレス",         w:"40", u:"計kg" },
-      { k:"squat",   n:"スクワット",           w:"45", u:"計kg" },
-      { k:"legpress",n:"レッグプレス",         w:"",   u:"kg" },
-      { k:"legext",  n:"レッグエクステンション", w:"",  u:"kg" },
-      { k:"legcurl", n:"レッグカール",         w:"",   u:"kg" },
-      { k:"calf",    n:"カーフレイズ",         w:"",   u:"kg" },
-      { k:"crunch",  n:"クランチ",             w:"5",  u:"kg" },
-      { k:"cardio",  n:"有酸素（バイク）",      w:"",   u:"負荷", ph:"15分" },
+    pushB: [
+      { k:"bench",    n:"ベンチプレス",          w:"40", u:"計kg" },
+      { k:"incline",  n:"インクラインDBプレス",   w:"9",  u:"片手kg" },
+      { k:"rdl",      n:"ルーマニアンDL",        w:"40", u:"計kg" },
+      { k:"shoulder", n:"ショルダープレス",       w:"35", u:"計kg" },
+      { k:"side",     n:"サイドレイズ",          w:"5",  u:"片手kg" },
+      { k:"ohext",    n:"オーバーヘッド三頭",     w:"",   u:"kg" },
+      { k:"crunch",   n:"クランチ",              w:"5",  u:"kg" },
+      { k:"cardio",   n:"有酸素",                w:"10%/4.5", u:"傾斜/速度", ph:"15分" },
     ],
+    pullB: [
+      { k:"row",      n:"シーテッドロー",        w:"",   u:"kg" },
+      { k:"lat",      n:"ラットプルダウン",      w:"40", u:"kg" },
+      { k:"revfly",   n:"リバースフライ",        w:"",   u:"kg" },
+      { k:"preacher", n:"プリチャーカール",      w:"",   u:"kg" },
+      { k:"legcurl",  n:"レッグカール",          w:"",   u:"kg" },
+      { k:"crunch",   n:"クランチ",              w:"5",  u:"kg" },
+      { k:"cardio",   n:"有酸素",                w:"10%/4.5", u:"傾斜/速度", ph:"15分" },
+    ],
+  };
+
+  /* ============ ジム日ごとの終了時刻 ============ */
+  const GYM_TIME = {
+    pushA: { end:M(21,5),  shake:M(21,10), dinner:M(21,55), bath:M(22,30), freeT:M(23,0) },
+    pullA: { end:M(20,47), shake:M(20,50), dinner:M(21,30), bath:M(22,15), freeT:M(22,45) },
+    pushB: { end:M(20,57), shake:M(21,0),  dinner:M(21,45), bath:M(22,20), freeT:M(22,50) },
+    pullB: { end:M(20,48), shake:M(20,50), dinner:M(21,30), bath:M(22,15), freeT:M(22,45) },
   };
 
   /* ============ タイムライン ============ */
   function gymBlocks(type) {
-    const dinner = type === "pull" ? "餃子の王将（餃子2人前＋ライス中）" : "P35g以上。Claudeと相談";
+    const T = GYM_TIME[type];
     return [
       { s:M(8,30),  e:M(8,45),  t:"起床・水200ml・体重計測", d:"トイレ後・朝食前に計測" },
       { s:M(8,45),  e:M(9,0),   t:"出発", d:"" },
       { s:M(9,0),   e:M(9,30),  t:"出社・BASE BREAD＋EAA", d:"チョコ1袋（266kcal/P13.6g）＋EAA12g（水300〜400ml）" },
       { s:M(9,30),  e:M(13,0),  t:"勤務（前半）", d:"水コップ2杯・1時間ごとに立つ" },
-      { s:M(13,0),  e:M(13,30), t:"昼食（外食）", d:(type==="pull"?"夜が王将なので軽め。":"")+"P30g以上・700〜900kcal" },
+      { s:M(13,0),  e:M(13,30), t:"昼食（外食）", d:"P30g以上・700〜900kcal" },
       { s:M(13,30), e:M(17,30), t:"勤務（後半）", d:"水コップ2杯" },
       { s:M(17,30), e:M(18,0),  t:"間食", d:"おにぎり1個（180〜200kcal）" },
       { s:M(18,0),  e:M(19,0),  t:"勤務（ラスト）", d:"" },
       { s:M(19,0),  e:M(19,30), t:"退勤 → JoyFit戸越銀座へ", d:"" },
-      { s:M(19,30), e:M(19,40), t:"ジム前プロテイン", d:"REYSホエイ1杯（P21.8g）" },
-      { s:M(19,40), e:M(21,10), t:"トレーニング（"+DAY_TYPES[type].label+"）", d:"「トレ」タブのメニュー参照" },
-      { s:M(21,10), e:M(21,55), t:"ジム後プロテイン＋クレアチン5g → 夕食購入", d:"シェイクにクレアチンを混ぜる" },
-      { s:M(21,55), e:M(22,30), t:"夕食", d:dinner },
-      { s:M(22,30), e:M(23,0),  t:"入浴＋ストレッチ15分", d:"" },
-      { s:M(23,0),  e:M(24,0),  t:"自由時間", d:"24:00就寝" },
+      { s:M(19,30), e:M(19,35), t:"ジム前プロテイン", d:"REYSホエイ1杯（P21.8g）。クレアチンは入れない" },
+      { s:M(19,35), e:T.end,    t:"トレーニング（"+DAY_TYPES[type].label+"）", d:"「トレ」タブのメニュー参照。トレ中の水分は水" },
+      { s:T.end,    e:T.dinner, t:"ジム後プロテイン＋クレアチン5g → 夕食購入", d:"シェイクにクレアチンを混ぜる" },
+      { s:T.dinner, e:T.bath,   t:"夕食", d:"P35g以上。Claudeと相談" },
+      { s:T.bath,   e:T.freeT,  t:"入浴＋ストレッチ15分", d:"" },
+      { s:T.freeT,  e:M(24,0),  t:"自由時間", d:"24:00就寝" },
     ];
   }
   function restBlocks() {
@@ -296,20 +362,20 @@
       { s:M(8,45),  e:M(9,0),   t:"出発", d:"" },
       { s:M(9,0),   e:M(9,30),  t:"出社・BASE BREAD＋ゆで卵2個", d:"P13.6g＋12g" },
       { s:M(9,30),  e:M(13,0),  t:"勤務（前半）", d:"水コップ2杯" },
-      { s:M(13,0),  e:M(13,30), t:"昼食（外食）", d:"P30g以上・700〜900kcal" },
+      { s:M(13,0),  e:M(13,30), t:"昼食（外食）", d:"夜が王将なので軽め。P30g以上" },
       { s:M(13,30), e:M(15,0),  t:"勤務", d:"" },
-      { s:M(15,0),  e:M(15,10), t:"プロテイン＋クレアチン5g", d:"休養日も飛ばさない" },
-      { s:M(15,10), e:M(19,0),  t:"勤務（後半）", d:"水コップ2杯" },
-      { s:M(19,0),  e:M(19,45), t:"退勤 → 夕食購入", d:"木曜はオオゼキ自炊も" },
-      { s:M(19,45), e:M(20,30), t:"夕食", d:"納豆1パックかゆで卵を追加してP135g前後に乗せる" },
-      { s:M(20,30), e:M(21,0),  t:"入浴＋マッサージ20分", d:"" },
-      { s:M(21,0),  e:M(24,0),  t:"自由時間", d:"24:00就寝" },
+      { s:M(15,0),  e:M(15,10), t:"プロテイン＋クレアチン5g", d:"残業で無理なら帰宅後でよい。飛ばさないことだけが条件" },
+      { s:M(15,10), e:M(20,30), t:"勤務（残業）", d:"水コップ2杯" },
+      { s:M(20,30), e:M(21,0),  t:"退勤 → 餃子の王将", d:"" },
+      { s:M(21,0),  e:M(21,45), t:"夕食", d:"餃子2人前＋ライス中。納豆1パック（P7g）を足してP140gに寄せる" },
+      { s:M(21,45), e:M(22,15), t:"入浴＋マッサージ20分", d:"" },
+      { s:M(22,15), e:M(24,0),  t:"自由時間", d:"24:00就寝" },
     ];
   }
   function freeBlocks(w, isHol) {
     return [
       { s:M(8,30),  e:M(10,0), t:"起床・体重計測", d:"食事管理は緩めでよい" },
-      { s:M(10,0),  e:M(15,0), t:"自由に過ごす", d:isHol ? "祝日。ジムに行くなら空いている昼間" : "よく歩くことを意識" },
+      { s:M(10,0),  e:M(15,0), t:"自由に過ごす", d:isHol ? "祝日。ジムに行くなら空いている昼間" : "よく歩く。脚のセット数が少ない構成なので歩数で補う" },
       { s:M(15,0),  e:M(15,10),t:"プロテイン＋クレアチン5g", d:"ここだけは継続" },
       { s:M(15,10), e:M(22,0), t:"自由に過ごす", d:w === 0 ? "飲み会・外食はこの日に寄せる" : "" },
       { s:M(22,0),  e:M(24,0), t:"生活リズムを戻す", d:"24:00就寝で翌日に備える" },
@@ -331,9 +397,9 @@
       { id:"weigh",   t:"体重計測（起床後・トイレ後・朝食前）" },
       { id:"bread",   t:"BASE BREAD＋ゆで卵2個" },
       { id:"water4",  t:"勤務中に水コップ4杯（約800ml）" },
-      { id:"lunch",   t:"昼食をClaudeと相談（P30g以上）" },
-      { id:"cre",     t:"15:00 プロテイン＋クレアチン5g" },
-      { id:"dinner",  t:"夕食に納豆か卵を追加（P35g以上）" },
+      { id:"lunch",   t:"昼食は軽め（夜が王将）" },
+      { id:"cre",     t:"プロテイン＋クレアチン5g" },
+      { id:"dinner",  t:"夕食：餃子の王将＋納豆1パック" },
       { id:"protein", t:"タンパク質140g以上" },
       { id:"sleep",   t:"24:00までに就寝" },
     ];
@@ -360,14 +426,15 @@
     "2026-07-01": { w:"70.80", bf:"18.90", mm:"54.40", note:"" },
     "2026-07-21": { w:"71.90", bf:"20.90", mm:"53.90", note:"体脂肪率のピーク" },
     "2026-07-22": { w:"71.20", bf:"20.50", mm:"53.70", note:"" },
-    "2026-08-03": { w:"72.00", bf:"20.40", mm:"54.30", note:"内臓脂肪7.0・基礎代謝1644" },
+    "2026-08-03": { w:"72.00", bf:"20.40", mm:"54.30", note:"内臓脂肪7.0・基礎代謝1644・筋肉スコア−1" },
   };
   const SEED_GYM = {
-    "2026-08-03": { type:"push", ex:{
+    "2026-08-03": { type:"pushA", ex:{
       bench:{w:"40", r:"12/12/12/10"}, incline:{w:"8", r:"12/12/12"},
+      squat:{w:"", r:""},
       shoulder:{w:"35", r:"10/10/10"}, side:{w:"5", r:"12/12/12"},
       pushdown:{w:"12.5", r:"15/15/15"}, crunch:{w:"5", r:"10/10/10"},
-      cardio:{w:"10%/4.5", r:"15分"} }, note:"3分割の初回。ベンチ4set目が10で届かず" },
+      cardio:{w:"10%/4.5", r:"15分"} }, note:"旧3分割の初回。ベンチ4set目が10で届かず同重量継続" },
   };
 
   const GOAL = { triggerW: 73.0, triggerBf: 21.0, finalBf: 15.0 };
@@ -390,6 +457,15 @@
     const g = await store.get("gymlog");
     S.gymLog = g ? JSON.parse(g) : {};
     if (!Object.keys(S.gymLog).length) { S.gymLog = JSON.parse(JSON.stringify(SEED_GYM)); await store.set("gymlog", JSON.stringify(S.gymLog)); }
+    /* 旧タイプ（push/pull/legs）が残っていれば新タイプへ寄せる */
+    let migrated = false;
+    Object.keys(S.gymLog).forEach((d) => {
+      const r = S.gymLog[d];
+      if (r.type === "push") { r.type = "pushA"; migrated = true; }
+      else if (r.type === "pull") { r.type = "pullA"; migrated = true; }
+      else if (r.type === "legs") { r.type = "pushB"; migrated = true; }
+    });
+    if (migrated) await store.set("gymlog", JSON.stringify(S.gymLog));
   }
 
   function flash(msg) {
@@ -474,8 +550,8 @@
           '<div style="font-size:15px;font-weight:700">今日は' + info.label + 'の日</div>' +
           '<button class="badge" data-tab="train" style="background:' + acc + '22;color:' + acc + ';border:1px solid ' + acc + '55">メニューを見る →</button></div>' +
           '<div style="font-size:12.5px;color:var(--sub);margin-top:6px;line-height:1.7">' +
-          m.rows.filter((r) => r[0] !== "①" && r[3].indexOf("分") === -1).map((r) => esc(r[1].split(" ★")[0].split(" or ")[0])).join(" ／ ") +
-          "</div></div></div>";
+          m.rows.filter((r) => r[0] !== "①" && r[3].indexOf("分") === -1).map((r) => esc(r[1].split(" ★")[0].split("（")[0])).join(" ／ ") +
+          '</div><div style="font-size:11.5px;color:' + acc + ';margin-top:8px">' + m.total + "　" + m.vol + "</div></div></div>";
       }
 
       h += '<div class="sect"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">' +
@@ -500,6 +576,19 @@
           (b.d ? '<div style="font-size:12px;color:var(--sub);margin-top:1px">' + esc(b.d) + "</div>" : "") + "</div></div>";
       });
       h += "</div></div>";
+
+      /* 週の並び */
+      h += '<div class="sect"><div class="card cardp"><div class="stitle">今週の並び</div>' +
+        '<div style="font-size:12.5px;line-height:2">';
+      [["月","pushA"],["火","pullA"],["水","rest"],["木","pushB"],["金","pullB"],["土日","free"]].forEach(([d, ty]) => {
+        const di = DAY_TYPES[ty];
+        h += '<div style="display:flex;gap:10px;align-items:center">' +
+          '<span style="color:var(--sub);min-width:28px">' + d + "</span>" +
+          '<span class="dot" style="background:' + di.raw + '"></span>' +
+          '<span style="font-weight:600">' + di.label + '</span>' +
+          '<span style="color:var(--sub);font-size:11.5px">' + di.sub + "</span></div>";
+      });
+      h += "</div></div></div>";
 
       /* 目標カード */
       const bd = Object.keys(S.bodyLog).sort();
@@ -527,20 +616,21 @@
 
     /* ---- トレ ---- */
     if (S.tab === "train") {
-      const view = S.trainView || (isGym(t) ? t : "push");
+      const view = S.trainView || (isGym(t) ? t : "pushA");
       const m = MENUS[view];
       const vAcc = DAY_TYPES[view].raw;
 
       h += '<div class="sect"><div class="seg">';
-      [["push","月 プッシュ"],["pull","水 プル"],["legs","金 レッグ"]].forEach(([id,lb]) => {
-        const on = view === id;
+      GYM_ORDER.forEach((id) => {
+        const on = view === id, di = DAY_TYPES[id];
         h += '<button class="segbtn" data-train="' + id + '" style="' +
-          (on ? "background:" + DAY_TYPES[id].raw + "22;color:" + DAY_TYPES[id].raw + ";" : "") + '">' + lb + "</button>";
+          (on ? "background:" + di.raw + "22;color:" + di.raw + ";" : "") + '">' +
+          '<span class="segday">' + di.day + "</span>" + di.short + "</button>";
       });
       h += "</div></div>";
 
       h += '<div class="sect"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">' +
-        '<div class="stitle" style="margin:0;color:' + vAcc + '">' + m.day + "｜" + DAY_TYPES[view].label + "（" + DAY_TYPES[view].sub.split("／")[0] + "）</div>" +
+        '<div class="stitle" style="margin:0;color:' + vAcc + '">' + m.day + "｜" + DAY_TYPES[view].label + "</div>" +
         '<div style="font-size:11px;color:var(--sub)">' + m.total + "</div></div>";
       h += '<div class="card" style="overflow:hidden">';
       m.rows.forEach((r) => {
@@ -549,9 +639,23 @@
           '<div class="exsub">' + r[2] + (r[4] !== "—" ? '　<span style="color:var(--line)">|</span>　休憩' + r[4] : "") + "</div></div>";
       });
       h += "</div>";
+      h += '<div style="font-size:11.5px;color:' + vAcc + ';margin-top:8px;text-align:right">この日の内訳：' + m.vol + "</div>";
       h += '<div class="memo"><div style="color:var(--text);font-weight:700;margin-bottom:6px">メモ</div>' +
         m.memo.map((x) => "・" + x).join("<br>") + "</div>";
       h += '<div class="memo"><div style="color:var(--text);font-weight:700;margin-bottom:6px">共通ルール</div>' + COMMON_RULES + "</div>";
+
+      h += '<div class="card cardp" style="margin-top:14px"><div class="stitle">週あたり直接セット数</div>' +
+        '<div style="display:flex;font-size:11px;color:var(--sub);padding-bottom:6px;border-bottom:1px solid var(--line)">' +
+        '<span style="flex:1.6">部位</span><span style="flex:1;text-align:right">旧3分割</span><span style="flex:1;text-align:right">この構成</span></div>';
+      WEEK_VOL.forEach(([n, a, b]) => {
+        const up = parseInt(b) > parseInt(a), down = parseInt(b) < parseInt(a);
+        h += '<div class="volrow"><span style="flex:1.6">' + n + "</span>" +
+          '<span style="flex:1;text-align:right;color:var(--sub)">' + a + "</span>" +
+          '<span style="flex:1;text-align:right;font-weight:700;color:' + (up?"var(--done)":down?"var(--red)":"var(--text)") + '">' + b + "</span></div>";
+      });
+      h += '<div style="font-size:12px;color:var(--sub);margin-top:10px;line-height:1.7">' +
+        '総セット数は61 → 74で+21%。四頭とハムは<b style="color:var(--text)">維持のみ</b>の構成。増やしたくなったら金曜をそのまま下半身日に差し替えるのが早い。</div></div>';
+
       h += '<button class="btn ghost" data-tab="log">この日の記録を入力する</button></div>';
     }
 
@@ -564,10 +668,11 @@
       h += '<div class="sect"><div class="card cardp"><div class="stitle" style="margin-bottom:12px">トレーニングを記録</div>' +
         '<label class="lbl">実施日</label><input class="input" type="date" id="gDate" value="' + f.gDate + '">' +
         '<div style="margin-top:10px"><label class="lbl">メニュー</label><div class="seg">';
-      [["push","プッシュ"],["pull","プル"],["legs","レッグ"]].forEach(([id,lb]) => {
-        const on = lt === id;
+      GYM_ORDER.forEach((id) => {
+        const on = lt === id, di = DAY_TYPES[id];
         h += '<button class="segbtn" data-logtype="' + id + '" style="' +
-          (on ? "background:" + DAY_TYPES[id].raw + "22;color:" + DAY_TYPES[id].raw + ";" : "") + '">' + lb + "</button>";
+          (on ? "background:" + di.raw + "22;color:" + di.raw + ";" : "") + '">' +
+          '<span class="segday">' + di.day + "</span>" + di.short + "</button>";
       });
       h += "</div></div></div>";
 
@@ -635,7 +740,8 @@
       });
       h += "</div>";
       h += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--sub)">';
-      [["#F5A524","月 プッシュ"],["#A78BFA","水 プル"],["#34D399","金 レッグ"],["#4AA8DE","休養（火木）"],["#8FDE4A","自由（土日）"],["#F87171","祝日"],["#4ADE80","記録あり"]].forEach(([c,l]) => {
+      [["#F5A524","月 プッシュA"],["#A78BFA","火 プルA"],["#4AA8DE","水 休養（残業）"],["#FB923C","木 プッシュB"],
+       ["#818CF8","金 プルB"],["#8FDE4A","土日 自由"],["#F87171","祝日"],["#4ADE80","記録あり"]].forEach(([c,l]) => {
         h += '<span style="display:flex;align-items:center;gap:4px"><span class="dot" style="width:7px;height:7px;background:' + c + '"></span>' + l + "</span>";
       });
       h += "</div>";
@@ -764,6 +870,7 @@
     const list = checklistOf(t);
     const bd = Object.keys(S.bodyLog).sort(), gd = Object.keys(S.gymLog).sort();
     let txt = "【フィットネス記録データ】\n出力：" + dk(now) + " " + pad(now.getHours()) + ":" + pad(now.getMinutes()) +
+      "\n構成：4分割（月プッシュA／火プルA／水休養／木プッシュB／金プルB）上半身メイン・脚は維持のみ" +
       "\n現在：増量期（トリガー 体重73〜75kg または 体脂肪率21%超）\n最終目標：体脂肪率15%\n\n";
 
     txt += "■ 体組成（" + bd.length + "件）\n";
@@ -892,8 +999,8 @@
     S.selDate = dk(d);
     S.form.bDate = dk(d); S.form.gDate = dk(d);
     const ty = dayTypeOf(d);
-    S.logType = isGym(ty) ? ty : "push";
-    S.trainView = isGym(ty) ? ty : "push";
+    S.logType = isGym(ty) ? ty : "pushA";
+    S.trainView = isGym(ty) ? ty : "pushA";
     await loadAll();
     loadLogForm();
     render();
