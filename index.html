@@ -36,8 +36,6 @@
   .clock { font-size: 52px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums;
     font-family: "Avenir Next Condensed", "Futura", -apple-system, sans-serif; letter-spacing: 1px; }
   .badge { border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; display: inline-block; }
-  .refresh { background: var(--cardsoft); border: 1px solid var(--line); border-radius: 12px;
-    color: var(--text); padding: 10px 14px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
   .tabs { display: flex; gap: 2px; margin-top: 14px; }
   .tabbtn { flex: 1; padding: 11px 0; font-size: 13px; font-weight: 700; color: var(--sub);
     background: transparent; border: none; border-bottom: 3px solid transparent; white-space: nowrap; }
@@ -102,6 +100,18 @@
   .trigbar { height: 8px; background: var(--cardsoft); border-radius: 999px; overflow: hidden; margin-top: 8px; }
   .volrow { display: flex; font-size: 13px; padding: 7px 0; border-top: 1px solid var(--line); }
   .volrow:first-child { border-top: none; }
+  .exwrap { display: flex; gap: 12px; align-items: flex-start; }
+  .exbody { flex: 1; min-width: 0; }
+  .exthumb { width: 62px; height: 62px; flex-shrink: 0; border-radius: 10px; background: #fff;
+    object-fit: contain; padding: 3px; border: 1px solid var(--line); }
+  .exmiss { width: 62px; height: 62px; flex-shrink: 0; border-radius: 10px; border: 1px dashed var(--line);
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    font-size: 10px; line-height: 1.3; color: var(--sub); text-decoration: none; padding: 4px; }
+  .ovl { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; }
+  .ovl img { max-width: 100%; max-height: 68vh; background: #fff; border-radius: 14px; padding: 8px; }
+  .ovlcap { font-size: 12px; color: var(--sub); text-align: center; line-height: 1.7; }
+  .ovlcap a { color: var(--blue); }
 </style>
 <script>
 (function () {
@@ -149,6 +159,37 @@
     free:    { label:"自由日",    short:"自由",      day:"土日", sub:"食事は緩め・計測とサプリは継続", raw:"#8FDE4A" },
     holiday: { label:"祝日",      short:"祝日",      day:"—",  sub:"食事管理なし・計測は継続",   raw:"#F87171" },
   };
+
+  /* ============ 種目イラスト（Wikimedia Commons / CC BY-SA 3.0） ============
+     [Commonsのファイル名, 見つからなかったときの検索語]
+     ファイル名が違う場合はサムネイル枠が「画像を探す」に変わり、
+     タップするとCommonsの検索結果が開く。正しい名前に差し替えれば表示される。 */
+  const EX_IMG = {
+    "ベンチプレス ★伸ばす日": ["Bench-press-1.png", "bench press"],
+    "ベンチプレス ★維持の日": ["Bench-press-1.png", "bench press"],
+    "インクラインダンベルプレス": ["Dumbbell-incline-bench-press-1.png", "incline dumbbell press"],
+    "スクワット": ["Squats-1.png", "barbell squat"],
+    "ショルダープレス（スミス）": ["Dumbbell-shoulder-press-1.png", "shoulder press"],
+    "サイドレイズ": ["Dumbbell-lateral-raises-1.png", "dumbbell lateral raise"],
+    "トライセプス・プレスダウン": ["Triceps-pushdown-1.png", "triceps pushdown"],
+    "オーバーヘッド・トライセプスエクステンション": ["Dumbbell-triceps-extension-1.png", "dumbbell triceps extension"],
+    "ルーマニアンデッドリフト": ["Romanian-deadlift-1.png", "romanian deadlift"],
+    "ラットプルダウン": ["Pulldown-1.png", "lat pulldown"],
+    "ダンベルロー": ["Dumbbell-bent-over-row-1.png", "dumbbell bent over row"],
+    "ケーブルシーテッドロー": ["Seated-cable-rows-1.png", "seated cable row"],
+    "リバースフライ": ["Lying-rear-lateral-raise-1.png", "reverse fly rear delt"],
+    "インクラインダンベルカール": ["Incline-dumbbell-curl-1.png", "incline dumbbell curl"],
+    "ハンマーカール": ["Hammer-curls-1.png", "hammer curl"],
+    "プリチャーカール": ["Preacher-curl-1.png", "preacher curl"],
+    "レッグカール": ["Lying-leg-curls-1.png", "lying leg curl"],
+    "クランチ": ["Crunches-1.png", "crunch exercise abdominal"],
+  };
+  const commonsImg = (file, w) =>
+    "https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(file) + "?width=" + w;
+  const commonsPage = (file) =>
+    "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(file);
+  const commonsSearch = (q) =>
+    "https://commons.wikimedia.org/w/index.php?search=" + encodeURIComponent(q) + "&ns6=1";
 
   const GYM_ORDER = ["pushA", "pullA", "pushB", "pullB"];
 
@@ -449,7 +490,7 @@
   const S = {
     now:new Date(), tab:"today", checked:{}, bodyLog:{}, gymLog:{},
     calY:0, calM:0, selDate:"", savedMsg:"", exportText:"", copied:false,
-    trainView:"", logType:"",
+    trainView:"", logType:"", zoom:"",
     form:{ bDate:"", bW:"", bF:"", bM:"", bNote:"", gDate:"", gNote:"" },
     logEx:{},
   };
@@ -508,12 +549,12 @@
     let h = "";
 
     /* ---- ヘッダー ---- */
-    h += '<div class="hdr"><div style="display:flex;justify-content:space-between;align-items:flex-start">';
-    h += '<div><div style="font-size:13px;color:var(--sub);letter-spacing:1px">' +
+    h += '<div class="hdr">';
+    h += '<div style="font-size:13px;color:var(--sub);letter-spacing:1px">' +
       now.getFullYear() + "年" + (now.getMonth()+1) + "月" + now.getDate() + "日（" + WD[now.getDay()] + "）" +
       (holName ? '<span style="color:var(--red);margin-left:6px">' + esc(holName) + "</span>" : "") + "</div>";
-    h += '<div class="clock">' + pad(now.getHours()) + '<span style="color:' + acc + '">:</span>' + pad(now.getMinutes()) + "</div></div>";
-    h += '<button class="refresh" data-act="refresh">↻ 更新</button></div>';
+    h += '<div class="clock"><span id="clockH">' + pad(now.getHours()) + '</span>' +
+      '<span style="color:' + acc + '">:</span><span id="clockM">' + pad(now.getMinutes()) + "</span></div>";
     h += '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">';
     h += '<span class="badge" style="background:' + acc + '22;color:' + acc + ';border:1px solid ' + acc + '55">' +
       (holName ? "祝日・" + esc(holName) : info.label) + "</span>";
@@ -640,11 +681,21 @@
         '<div style="font-size:11px;color:var(--sub)">' + m.total + "</div></div>";
       h += '<div class="card" style="overflow:hidden">';
       m.rows.forEach((r) => {
-        h += '<div class="exrow"><div class="exhead"><span class="exnum" style="color:' + vAcc + '">' + r[0] + "</span>" +
+        const im = EX_IMG[r[1]];
+        const thumb = im
+          ? '<img class="exthumb" data-img="' + esc(im[0]) + '" data-q="' + esc(im[1]) + '" alt="" src="' + commonsImg(im[0], 180) + '">'
+          : "";
+        h += '<div class="exrow"><div class="exwrap"><div class="exbody">' +
+          '<div class="exhead"><span class="exnum" style="color:' + vAcc + '">' + r[0] + "</span>" +
           '<span class="exname">' + esc(r[1]) + '</span><span class="exset">' + esc(r[3]) + "</span></div>" +
-          '<div class="exsub">' + r[2] + (r[4] !== "—" ? '　<span style="color:var(--line)">|</span>　休憩' + r[4] : "") + "</div></div>";
+          '<div class="exsub">' + r[2] + (r[4] !== "—" ? '　<span style="color:var(--line)">|</span>　休憩' + r[4] : "") + "</div>" +
+          "</div>" + thumb + "</div></div>";
       });
       h += "</div>";
+      h += '<div style="font-size:10.5px;color:var(--sub);margin-top:6px;line-height:1.6">' +
+        '種目イラスト：<a href="https://commons.wikimedia.org/wiki/Category:Weight_training_diagrams" target="_blank" rel="noopener" style="color:var(--sub)">Wikimedia Commons</a>（Everkinetic）／' +
+        '<a href="https://creativecommons.org/licenses/by-sa/3.0/deed.ja" target="_blank" rel="noopener" style="color:var(--sub)">CC BY-SA 3.0</a>。表示サイズのみ変更。' +
+        '枠が「画像を探す」になっている種目は、タップしてCommonsで正しいファイル名を調べ、EX_IMG に差し替えてください。</div>';
       h += '<div style="font-size:11.5px;color:' + vAcc + ';margin-top:8px;text-align:right">この日の内訳：' + m.vol + "</div>";
       h += '<div class="memo"><div style="color:var(--text);font-weight:700;margin-bottom:6px">メモ</div>' +
         m.memo.map((x) => "・" + x).join("<br>") + "</div>";
@@ -854,8 +905,19 @@
       h += "</div></div>";
     }
 
-    document.getElementById("app").innerHTML = h;
+    document.getElementById("app").innerHTML = h + zoomOverlay();
     bindEvents();
+  }
+
+  /* 画像の拡大表示 */
+  function zoomOverlay() {
+    if (!S.zoom) return "";
+    return '<div class="ovl" data-act="closeZoom">' +
+      '<img src="' + commonsImg(S.zoom, 900) + '" alt="">' +
+      '<div class="ovlcap">' + esc(S.zoom) + "<br>" +
+      'Wikimedia Commons ／ <a href="https://creativecommons.org/licenses/by-sa/3.0/deed.ja" target="_blank" rel="noopener">CC BY-SA 3.0</a>　' +
+      '<a href="' + commonsPage(S.zoom) + '" target="_blank" rel="noopener">ファイルページ</a><br>' +
+      "どこかをタップで閉じる</div></div>";
   }
 
   /* ============ フォーム退避 ============ */
@@ -936,6 +998,21 @@
         await store.set("check:" + dk(S.now), JSON.stringify(S.checked));
       };
     });
+    document.querySelectorAll("[data-img]").forEach((el) => {
+      const fallback = () => {
+        const q = el.dataset.q || "";
+        const a = document.createElement("a");
+        a.className = "exmiss";
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.href = commonsSearch(q);
+        a.textContent = "画像を探す";
+        if (el.parentNode) el.parentNode.replaceChild(a, el);
+      };
+      el.onerror = fallback;
+      if (el.complete && el.naturalWidth === 0) fallback();
+      el.onclick = () => { S.zoom = el.dataset.img; render(); };
+    });
     document.querySelectorAll("[data-sel]").forEach((el) => {
       el.onclick = () => { S.selDate = el.dataset.sel; render(); };
     });
@@ -949,12 +1026,7 @@
     document.querySelectorAll("[data-act]").forEach((el) => {
       el.onclick = async () => {
         const act = el.dataset.act;
-        if (act === "refresh") {
-          captureForm();
-          const d = new Date();
-          S.now = d; S.calY = d.getFullYear(); S.calM = d.getMonth();
-          await loadAll(); render();
-        }
+        if (act === "closeZoom") { S.zoom = ""; render(); return; }
         if (act === "prevM" || act === "nextM") {
           let y = S.calY, mo = S.calM + (act === "nextM" ? 1 : -1);
           if (mo < 0) { mo = 11; y--; }
@@ -1010,14 +1082,38 @@
     await loadAll();
     loadLogForm();
     render();
+
+    /* 15秒ごと。入力中の値を消さないよう、今日タブ以外は時計だけ差し替える */
     setInterval(() => {
       const prev = dk(S.now);
       S.now = new Date();
-      if (S.tab === "today" || prev !== dk(S.now)) {
-        if (prev !== dk(S.now)) loadAll().then(render);
-        else render();
+      if (prev !== dk(S.now)) {           // 日付が変わった → 全体を作り直す
+        S.calY = S.now.getFullYear(); S.calM = S.now.getMonth();
+        S.selDate = dk(S.now);
+        loadAll().then(render);
+        return;
       }
+      if (S.tab === "today") { render(); return; }
+      const eh = document.getElementById("clockH"), em = document.getElementById("clockM");
+      if (eh) eh.textContent = pad(S.now.getHours());
+      if (em) em.textContent = pad(S.now.getMinutes());
     }, 15000);
+
+    /* バックグラウンドから戻ったとき。iOSはタイマーを止めるのでここで追いつかせる */
+    if (document.addEventListener) {
+      document.addEventListener("visibilitychange", async () => {
+        if (document.hidden) return;
+        captureForm();
+        const prev = dk(S.now);
+        S.now = new Date();
+        if (prev !== dk(S.now)) {
+          S.calY = S.now.getFullYear(); S.calM = S.now.getMonth();
+          S.selDate = dk(S.now);
+        }
+        await loadAll();
+        render();
+      });
+    }
   })();
 })();
 </script>
