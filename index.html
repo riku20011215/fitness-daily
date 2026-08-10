@@ -16,7 +16,7 @@
     --bg: #0F1318; --card: #171D25; --cardsoft: #1D242E; --line: #28313D;
     --text: #E9EDF1; --sub: #8A96A3; --now: #F5A524; --done: #4ADE80;
     --red: #F87171; --blue: #60A5FA;
-    --pushA: #F5A524; --pushB: #FB923C; --pullA: #A78BFA; --pullB: #818CF8;
+    --fullA: #F5A524; --fullB: #818CF8;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; background: #131920; }
@@ -102,16 +102,32 @@
   .volrow:first-child { border-top: none; }
   .exwrap { display: flex; gap: 12px; align-items: flex-start; }
   .exbody { flex: 1; min-width: 0; }
-  .exthumb { width: 62px; height: 62px; flex-shrink: 0; border-radius: 10px; background: #fff;
-    object-fit: contain; padding: 3px; border: 1px solid var(--line); }
-  .exmiss { width: 62px; height: 62px; flex-shrink: 0; border-radius: 10px; border: 1px dashed var(--line);
+  .exthumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 10px; background: #fff;
+    border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+    overflow: hidden; cursor: pointer; }
+  .exthumb img, .exthumb svg { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .exmiss { width: 64px; height: 64px; flex-shrink: 0; border-radius: 10px; border: 1px dashed var(--line);
     display: flex; align-items: center; justify-content: center; text-align: center;
     font-size: 10px; line-height: 1.3; color: var(--sub); text-decoration: none; padding: 4px; }
+  svg .sk { stroke: #2B3440; stroke-width: 5.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  svg .hd { fill: #2B3440; }
+  svg .eq { stroke: #94A1B0; stroke-width: 4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  svg .eqf { fill: #94A1B0; }
+  svg .gh { stroke: #C7D0DA; stroke-width: 5.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  svg .ghf { fill: #C7D0DA; }
+  svg .pv { fill: #F59E0B; }
+  svg .ar { stroke: #F59E0B; stroke-width: 3.5; fill: none; stroke-linecap: round; }
+  svg .arf { fill: #F59E0B; }
   .ovl { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; }
   .ovl img { max-width: 100%; max-height: 68vh; background: #fff; border-radius: 14px; padding: 8px; }
-  .ovlcap { font-size: 12px; color: var(--sub); text-align: center; line-height: 1.7; }
+  .ovlsvg { width: min(84vw, 400px); background: #fff; border-radius: 16px; padding: 12px; }
+  .ovlsvg svg { width: 100%; height: auto; display: block; }
+  .ovlcap { font-size: 13px; color: var(--sub); text-align: center; line-height: 1.7; }
   .ovlcap a { color: var(--blue); }
+  .ovlbtns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .ovlbtn { background: var(--cardsoft); border: 1px solid var(--line); color: var(--text);
+    border-radius: 10px; padding: 9px 14px; font-size: 12.5px; font-weight: 600; }
 </style>
 <script>
 (function () {
@@ -151,47 +167,240 @@
 
   /* ============ 日タイプ（月火木金の4分割・水は残業休養） ============ */
   const DAY_TYPES = {
-    pushA:   { label:"プッシュA", short:"プッシュA", day:"月", sub:"胸・肩・三頭＋スクワット",   raw:"#F5A524" },
-    pullA:   { label:"プルA",     short:"プルA",     day:"火", sub:"背中・二頭（垂直引き）",     raw:"#A78BFA" },
-    pushB:   { label:"プッシュB", short:"プッシュB", day:"木", sub:"胸・肩・三頭＋ルーマニアンDL", raw:"#FB923C" },
-    pullB:   { label:"プルB",     short:"プルB",     day:"金", sub:"背中・二頭（水平引き）＋レッグカール", raw:"#818CF8" },
-    rest:    { label:"休養日",    short:"休養",      day:"水", sub:"残業日／夜は餃子の王将",     raw:"#4AA8DE" },
-    free:    { label:"自由日",    short:"自由",      day:"土日", sub:"食事は緩め・計測とサプリは継続", raw:"#8FDE4A" },
-    holiday: { label:"祝日",      short:"祝日",      day:"—",  sub:"食事管理なし・計測は継続",   raw:"#F87171" },
+    fullA:   { label:"全身A", short:"全身A", day:"月木", sub:"スクワット・ベンチ・ロー・プレスダウン・プリチャー", raw:"#F5A524" },
+    fullB:   { label:"全身B", short:"全身B", day:"火金", sub:"RDL・ショルダープレス・ラットプル・レッグカール", raw:"#818CF8" },
+    rest:    { label:"休養日", short:"休養", day:"水", sub:"残業日／夜は餃子の王将", raw:"#4AA8DE" },
+    free:    { label:"自由日", short:"自由", day:"土日", sub:"食事は緩め・計測とサプリは継続", raw:"#8FDE4A" },
+    holiday: { label:"祝日",   short:"祝日", day:"—",  sub:"食事管理なし・計測は継続", raw:"#F87171" },
   };
 
-  /* ============ 種目イラスト（Wikimedia Commons / CC BY-SA 3.0） ============
-     [Commonsのファイル名, 見つからなかったときの検索語]
-     ファイル名が違う場合はサムネイル枠が「画像を探す」に変わり、
-     タップするとCommonsの検索結果が開く。正しい名前に差し替えれば表示される。 */
+  /* ============ 種目イラスト ============
+     優先順位：あなたが登録した写真URL ＞ 下のデフォルトURL ＞ 内蔵SVG。
+     デフォルトはWikimedia Commons（Everkinetic・CC BY-SA 3.0）のリアル調イラスト。
+     ✓=ファイル実在確認済み ／ ?=推測（読み込めなければ自動で内蔵SVGに切り替わる） */
+  const C = (f) => "https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(f) + "?width=400";
   const EX_IMG = {
-    "ベンチプレス ★伸ばす日": ["Bench-press-1.png", "bench press"],
-    "ベンチプレス ★維持の日": ["Bench-press-1.png", "bench press"],
-    "インクラインダンベルプレス": ["Dumbbell-incline-bench-press-1.png", "incline dumbbell press"],
-    "スクワット": ["Squats-1.png", "barbell squat"],
-    "ショルダープレス（スミス）": ["Dumbbell-shoulder-press-1.png", "shoulder press"],
-    "サイドレイズ": ["Dumbbell-lateral-raises-1.png", "dumbbell lateral raise"],
-    "トライセプス・プレスダウン": ["Triceps-pushdown-1.png", "triceps pushdown"],
-    "オーバーヘッド・トライセプスエクステンション": ["Dumbbell-triceps-extension-1.png", "dumbbell triceps extension"],
-    "ルーマニアンデッドリフト": ["Romanian-deadlift-1.png", "romanian deadlift"],
-    "ラットプルダウン": ["Pulldown-1.png", "lat pulldown"],
-    "ダンベルロー": ["Dumbbell-bent-over-row-1.png", "dumbbell bent over row"],
-    "ケーブルシーテッドロー": ["Seated-cable-rows-1.png", "seated cable row"],
-    "リバースフライ": ["Lying-rear-lateral-raise-1.png", "reverse fly rear delt"],
-    "インクラインダンベルカール": ["Incline-dumbbell-curl-1.png", "incline dumbbell curl"],
-    "ハンマーカール": ["Hammer-curls-1.png", "hammer curl"],
-    "プリチャーカール": ["Preacher-curl-1.png", "preacher curl"],
-    "レッグカール": ["Lying-leg-curls-1.png", "lying leg curl"],
-    "クランチ": ["Crunches-1.png", "crunch exercise abdominal"],
+    "ベンチプレス": C("Bench-press-1.png"),                              /* ✓ */
+    "インクラインダンベルプレス": C("Dumbbell-incline-bench-press-1.png"), /* ✓ */
+    "スクワット": C("Squats-1.png"),                                     /* ✓ */
+    "ショルダープレス": C("Dumbbell-shoulder-press-1.png"),               /* ? */
+    "ショルダープレス（スミス）": C("Dumbbell-shoulder-press-1.png"),      /* ? */
+    "サイドレイズ": C("Dumbbell-lateral-raises-1.png"),                   /* ✓ */
+    "トライセプス・プレスダウン": C("Triceps-pushdown-1.gif"),             /* ✓ */
+    "オーバーヘッド・トライセプスエクステンション": C("Standing-dumbbell-triceps-extension-1.png"), /* ? */
+    "ルーマニアンデッドリフト": C("Romanian-deadlift-1.png"),              /* ? */
+    "ラットプルダウン": C("Wide-grip-lat-pull-down-1.gif"),               /* ✓ */
+    "ダンベルロー": C("Dumbbell-bent-over-row-1.png"),                    /* ? */
+    "ケーブルシーテッドロー": C("Seated-cable-rows-1.png"),                /* ? */
+    "ケーブルシーテッドロー or ダンベルロー": C("Seated-cable-rows-1.png"), /* ? */
+    "リバースフライ": C("Lying-rear-lateral-raise-1.png"),                /* ✓ */
+    "インクラインダンベルカール": C("Incline-dumbbell-curl-1.png"),        /* ? */
+    "ハンマーカール": C("Hammer-curls-1.png"),                            /* ? */
+    "プリチャーカール": C("Preacher-curl-1.png"),                         /* ? */
+    "レッグカール": C("Lying-leg-curls-1.png"),                           /* ? */
+    "レッグエクステンション": C("Leg-extensions-1.png"),                   /* ? */
+    "クランチ": C("Crunches-1.png"),                                     /* ? */
+    "動的ストレッチ": "",
+    "有酸素": "",
+    "静的ストレッチ": "",
   };
-  const commonsImg = (file, w) =>
-    "https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(file) + "?width=" + w;
-  const commonsPage = (file) =>
-    "https://commons.wikimedia.org/wiki/File:" + encodeURIComponent(file);
-  const commonsSearch = (q) =>
-    "https://commons.wikimedia.org/w/index.php?search=" + encodeURIComponent(q) + "&ns6=1";
+  const sv = (b) => '<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">' + b + "</svg>";
+  const EX_SVG = {
+    /* 薄いグレー＝開始位置、黒＝終了位置、オレンジの点＝支点 */
+    "ベンチプレス": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<rect class="eqf" x="18" y="76" width="68" height="7" rx="3"/>'
+      + '<line class="eq" x1="28" y1="83" x2="28" y2="105"/><line class="eq" x1="76" y1="83" x2="76" y2="105"/>'
+      + '<path class="gh" d="M46 72 L46 58"/><circle class="gh" cx="46" cy="51" r="8" stroke-width="4.5"/>'
+      + '<circle class="hd" cx="30" cy="68" r="7"/>'
+      + '<path class="sk" d="M38 70 L66 72 L82 90 L90 105"/>'
+      + '<path class="sk" d="M46 72 L46 38"/>'
+      + '<circle class="eq" cx="46" cy="30" r="8" stroke-width="5"/>'
+      + '<line class="ar" x1="66" y1="52" x2="66" y2="36"/><polygon class="arf" points="66,28 61,38 71,38"/>'),
+    "インクラインダンベルプレス": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<path class="eq" d="M28 100 L64 52" stroke-width="7"/>'
+      + '<line class="eq" x1="36" y1="102" x2="36" y2="106"/><line class="eq" x1="52" y1="92" x2="52" y2="106"/>'
+      + '<path class="gh" d="M58 60 L64 46"/><line class="gh" x1="56" y1="42" x2="72" y2="46" stroke-width="6"/>'
+      + '<circle class="hd" cx="68" cy="46" r="7"/>'
+      + '<path class="sk" d="M61 55 L42 84 L58 92 L60 106"/>'
+      + '<path class="sk" d="M58 60 L66 30"/>'
+      + '<line class="eq" x1="58" y1="24" x2="76" y2="28" stroke-width="6"/>'
+      + '<line class="ar" x1="84" y1="48" x2="80" y2="32"/><polygon class="arf" points="78,24 76,35 86,32"/>'),
+    "スクワット": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<circle class="ghf" cx="62" cy="18" r="6"/><path class="gh" d="M62 24 L58 48"/>'
+      + '<circle class="hd" cx="54" cy="38" r="7"/>'
+      + '<circle class="eq" cx="47" cy="52" r="9" stroke-width="5"/>'
+      + '<path class="sk" d="M54 45 L46 68 L76 72 L76 106 L88 106"/>'
+      + '<path class="sk" d="M50 54 L62 58"/>'
+      + '<path class="gh" d="M36 78 L88 78" stroke-dasharray="5 6" stroke-width="3"/>'
+      + '<line class="ar" x1="100" y1="52" x2="100" y2="74"/>'
+      + '<polygon class="arf" points="100,44 95,54 105,54"/><polygon class="arf" points="100,82 95,72 105,72"/>'),
+    "ショルダープレス（スミス）": sv('<line class="eq" x1="24" y1="12" x2="24" y2="104"/><line class="eq" x1="96" y1="12" x2="96" y2="104"/>'
+      + '<line class="gh" x1="24" y1="56" x2="96" y2="56" stroke-width="4.5"/>'
+      + '<path class="gh" d="M54 56 L46 60 L48 56 M66 56 L74 60 L72 56"/>'
+      + '<line class="eq" x1="24" y1="26" x2="96" y2="26" stroke-width="5"/>'
+      + '<rect class="eqf" x="27" y="19" width="5" height="14" rx="2"/><rect class="eqf" x="88" y="19" width="5" height="14" rx="2"/>'
+      + '<circle class="hd" cx="60" cy="46" r="7"/>'
+      + '<path class="sk" d="M60 53 L60 84"/>'
+      + '<path class="sk" d="M54 56 L46 42 L52 28"/><path class="sk" d="M66 56 L74 42 L68 28"/>'
+      + '<rect class="eqf" x="46" y="84" width="28" height="6" rx="2"/>'
+      + '<line class="eq" x1="50" y1="90" x2="50" y2="104"/><line class="eq" x1="70" y1="90" x2="70" y2="104"/>'
+      + '<line class="ar" x1="108" y1="50" x2="108" y2="32"/><polygon class="arf" points="108,24 103,34 113,34"/>'),
+    "サイドレイズ": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<path class="gh" d="M60 40 L48 64"/><circle class="ghf" cx="46" cy="69" r="5"/>'
+      + '<path class="gh" d="M60 40 L72 64"/><circle class="ghf" cx="74" cy="69" r="5"/>'
+      + '<circle class="hd" cx="60" cy="24" r="7"/>'
+      + '<path class="sk" d="M60 31 L60 68 L50 106"/><path class="sk" d="M60 68 L70 106"/>'
+      + '<path class="sk" d="M60 40 L32 32"/><path class="sk" d="M60 40 L88 32"/>'
+      + '<circle class="eqf" cx="29" cy="31" r="5"/><circle class="eqf" cx="91" cy="31" r="5"/>'
+      + '<path class="ar" d="M86 58 A26 26 0 0 0 94 40"/><polygon class="arf" points="96,34 88,40 97,44"/>'
+      + '<path class="ar" d="M34 58 A26 26 0 0 1 26 40"/><polygon class="arf" points="24,34 32,40 23,44"/>'),
+    "トライセプス・プレスダウン": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<line class="eq" x1="92" y1="12" x2="92" y2="105" stroke-width="6"/>'
+      + '<circle class="eqf" cx="92" cy="18" r="4"/>'
+      + '<path class="gh" d="M58 56 L70 44"/>'
+      + '<line class="eq" x1="92" y1="18" x2="68" y2="70" stroke-width="2.5"/>'
+      + '<path class="eq" d="M68 70 L61 80 M68 70 L73 81" stroke-width="2.5"/>'
+      + '<circle class="hd" cx="44" cy="26" r="7"/>'
+      + '<path class="sk" d="M46 33 L50 72 L42 106"/><path class="sk" d="M50 72 L58 106"/>'
+      + '<path class="sk" d="M48 42 L58 56 L68 70"/>'
+      + '<circle class="pv" cx="58" cy="56" r="3.5"/>'
+      + '<path class="ar" d="M80 48 A20 20 0 0 1 80 70"/><polygon class="arf" points="79,78 74,68 84,69"/>'),
+    "オーバーヘッド・トライセプスエクステンション": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<path class="gh" d="M54 30 L38 22"/><circle class="ghf" cx="34" cy="20" r="5.5"/>'
+      + '<circle class="hd" cx="58" cy="44" r="7"/>'
+      + '<path class="sk" d="M58 51 L58 84 L48 106"/><path class="sk" d="M58 84 L68 106"/>'
+      + '<path class="sk" d="M58 54 L54 30 L57 8"/>'
+      + '<circle class="pv" cx="54" cy="30" r="3.5"/>'
+      + '<circle class="eqf" cx="58" cy="7" r="5.5"/>'
+      + '<path class="ar" d="M36 12 A24 24 0 0 1 66 8"/><polygon class="arf" points="74,10 64,3 64,14"/>'),
+    "ルーマニアンデッドリフト": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<circle class="ghf" cx="64" cy="20" r="6"/><path class="gh" d="M64 26 L68 60"/>'
+      + '<path class="gh" d="M65 34 L66 56"/><circle class="gh" cx="66" cy="63" r="7" stroke-width="4"/>'
+      + '<circle class="hd" cx="30" cy="44" r="7"/>'
+      + '<path class="sk" d="M37 48 L68 62 L72 86 L70 105"/>'
+      + '<path class="sk" d="M42 50 L44 78"/>'
+      + '<circle class="eq" cx="44" cy="86" r="8" stroke-width="5"/>'
+      + '<path class="ar" d="M30 30 A34 34 0 0 1 56 16"/><polygon class="arf" points="64,15 53,10 55,20"/>'),
+    "ラットプルダウン": sv('<line class="eq" x1="34" y1="10" x2="86" y2="10" stroke-width="5"/>'
+      + '<line class="eq" x1="60" y1="10" x2="60" y2="17" stroke-width="2.5"/>'
+      + '<path class="gh" d="M36 24 L48 20 L72 20 L84 24"/>'
+      + '<path class="gh" d="M55 48 L42 23 M65 48 L78 23"/>'
+      + '<path class="eq" d="M40 56 L50 52 L70 52 L80 56"/>'
+      + '<circle class="hd" cx="60" cy="38" r="7"/>'
+      + '<path class="sk" d="M60 45 L60 80"/>'
+      + '<path class="sk" d="M55 48 L44 62 L49 53"/><path class="sk" d="M65 48 L76 62 L71 53"/>'
+      + '<rect class="eqf" x="44" y="80" width="32" height="6" rx="2"/>'
+      + '<line class="eq" x1="50" y1="86" x2="50" y2="104"/><line class="eq" x1="70" y1="86" x2="70" y2="104"/>'
+      + '<line class="ar" x1="100" y1="28" x2="100" y2="48"/><polygon class="arf" points="100,56 95,46 105,46"/>'),
+    "ダンベルロー": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<rect class="eqf" x="14" y="74" width="50" height="6" rx="3"/>'
+      + '<line class="eq" x1="22" y1="80" x2="22" y2="105"/><line class="eq" x1="56" y1="80" x2="56" y2="105"/>'
+      + '<path class="gh" d="M52 50 L55 80"/><circle class="ghf" cx="55" cy="86" r="6"/>'
+      + '<circle class="hd" cx="35" cy="42" r="7"/>'
+      + '<path class="sk" d="M42 46 L68 52"/>'
+      + '<path class="sk" d="M44 48 L34 72"/>'
+      + '<path class="sk" d="M68 52 L58 70 L72 72"/>'
+      + '<path class="sk" d="M68 52 L78 80 L78 105"/>'
+      + '<path class="sk" d="M52 50 L58 62"/>'
+      + '<circle class="eqf" cx="57" cy="66" r="6"/>'
+      + '<line class="ar" x1="94" y1="82" x2="94" y2="62"/><polygon class="arf" points="94,54 89,64 99,64"/>'),
+    "ケーブルシーテッドロー": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<line class="eq" x1="26" y1="64" x2="26" y2="92" stroke-width="6"/>'
+      + '<path class="gh" d="M69 54 L48 58"/><circle class="ghf" cx="45" cy="58" r="4"/>'
+      + '<rect class="eqf" x="58" y="82" width="30" height="6" rx="3"/>'
+      + '<line class="eq" x1="64" y1="88" x2="64" y2="105"/><line class="eq" x1="84" y1="88" x2="84" y2="105"/>'
+      + '<circle class="hd" cx="66" cy="44" r="7"/>'
+      + '<path class="sk" d="M68 51 L72 80 L46 72 L30 78"/>'
+      + '<line class="eq" x1="26" y1="61" x2="58" y2="62" stroke-width="2.5"/>'
+      + '<path class="sk" d="M69 54 L82 62 L60 62"/>'
+      + '<circle class="eqf" cx="59" cy="62" r="4"/>'
+      + '<line class="ar" x1="38" y1="46" x2="52" y2="46"/><polygon class="arf" points="60,46 50,41 50,51"/>'),
+    "リバースフライ": sv('<rect class="eqf" x="52" y="24" width="16" height="11" rx="3"/>'
+      + '<path class="gh" d="M46 54 L34 34 M74 54 L86 34"/>'
+      + '<circle class="ghf" cx="32" cy="31" r="4"/><circle class="ghf" cx="88" cy="31" r="4"/>'
+      + '<circle class="hd" cx="60" cy="54" r="8"/>'
+      + '<path class="sk" d="M46 56 L22 62"/><path class="sk" d="M74 56 L98 62"/>'
+      + '<circle class="eqf" cx="19" cy="63" r="4.5"/><circle class="eqf" cx="101" cy="63" r="4.5"/>'
+      + '<path class="ar" d="M30 38 A28 28 0 0 0 20 56"/><polygon class="arf" points="17,63 15,52 25,56"/>'
+      + '<path class="ar" d="M90 38 A28 28 0 0 1 100 56"/><polygon class="arf" points="103,63 105,52 95,56"/>'),
+    "インクラインダンベルカール": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<path class="eq" d="M30 100 L64 52" stroke-width="7"/>'
+      + '<line class="eq" x1="38" y1="102" x2="38" y2="106"/><line class="eq" x1="54" y1="92" x2="54" y2="106"/>'
+      + '<path class="gh" d="M62 82 L64 98"/><circle class="ghf" cx="64" cy="102" r="5.5"/>'
+      + '<circle class="hd" cx="68" cy="46" r="7"/>'
+      + '<path class="sk" d="M61 55 L42 86 L58 94 L60 106"/>'
+      + '<path class="sk" d="M57 59 L62 82 L76 70"/>'
+      + '<circle class="pv" cx="62" cy="82" r="3.5"/>'
+      + '<circle class="eqf" cx="79" cy="67" r="5.5"/>'
+      + '<path class="ar" d="M76 96 A22 22 0 0 0 86 76"/><polygon class="arf" points="88,68 80,74 90,78"/>'),
+    "ハンマーカール": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<path class="gh" d="M52 58 L56 78"/><line class="gh" x1="57" y1="74" x2="57" y2="88" stroke-width="6"/>'
+      + '<circle class="hd" cx="50" cy="24" r="7"/>'
+      + '<path class="sk" d="M50 31 L50 72 L42 106"/><path class="sk" d="M50 72 L58 106"/>'
+      + '<path class="sk" d="M50 40 L52 58 L68 48"/>'
+      + '<circle class="pv" cx="52" cy="58" r="3.5"/>'
+      + '<line class="eq" x1="71" y1="40" x2="71" y2="55" stroke-width="6"/>'
+      + '<path class="ar" d="M64 78 A24 24 0 0 0 78 56"/><polygon class="arf" points="81,48 73,54 83,58"/>'),
+    "プリチャーカール": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<polygon class="eqf" points="38,58 66,50 66,66 38,80"/>'
+      + '<line class="eq" x1="52" y1="74" x2="52" y2="105" stroke-width="5"/>'
+      + '<path class="gh" d="M58 56 L72 68"/><circle class="ghf" cx="75" cy="71" r="5"/>'
+      + '<circle class="hd" cx="30" cy="36" r="7"/>'
+      + '<path class="sk" d="M32 43 L34 70"/>'
+      + '<path class="sk" d="M36 48 L58 56 L70 38"/>'
+      + '<circle class="pv" cx="58" cy="56" r="3.5"/>'
+      + '<circle class="eqf" cx="73" cy="34" r="5.5"/>'
+      + '<path class="ar" d="M84 62 A22 22 0 0 0 80 38"/><polygon class="arf" points="76,31 75,42 85,38"/>'),
+    "レッグカール": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<rect class="eqf" x="14" y="64" width="64" height="7" rx="3"/>'
+      + '<line class="eq" x1="22" y1="71" x2="22" y2="105"/><line class="eq" x1="70" y1="71" x2="70" y2="105"/>'
+      + '<path class="gh" d="M78 60 L100 62"/><circle class="ghf" cx="103" cy="62" r="4.5"/>'
+      + '<circle class="hd" cx="22" cy="55" r="7"/>'
+      + '<path class="sk" d="M30 58 L60 58 L78 60 L84 38"/>'
+      + '<circle class="pv" cx="78" cy="60" r="3.5"/>'
+      + '<circle class="eqf" cx="85" cy="35" r="4.5"/>'
+      + '<path class="ar" d="M102 54 A22 22 0 0 0 94 34"/><polygon class="arf" points="88,28 89,39 98,34"/>'),
+    "クランチ": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<path class="eq" d="M18 82 L92 56" stroke-width="7"/>'
+      + '<line class="eq" x1="28" y1="80" x2="28" y2="105"/><line class="eq" x1="80" y1="62" x2="80" y2="105"/>'
+      + '<circle class="eqf" cx="89" cy="49" r="4"/><circle class="eqf" cx="95" cy="55" r="4"/>'
+      + '<path class="gh" d="M64 66 L42 74"/><circle class="ghf" cx="36" cy="77" r="6"/>'
+      + '<path class="sk" d="M64 66 L78 54 L86 51"/>'
+      + '<path class="sk" d="M64 66 L50 62 L44 52"/>'
+      + '<circle class="hd" cx="39" cy="46" r="7"/>'
+      + '<path class="ar" d="M26 70 A24 24 0 0 1 30 44"/><polygon class="arf" points="34,37 25,42 34,48"/>'),
+    "動的ストレッチ": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<path class="gh" d="M58 42 L74 58"/>'
+      + '<circle class="hd" cx="58" cy="26" r="7"/>'
+      + '<path class="sk" d="M58 33 L58 72 L48 106"/><path class="sk" d="M58 72 L68 106"/>'
+      + '<path class="sk" d="M58 42 L76 26"/><path class="sk" d="M58 44 L42 52"/>'
+      + '<path class="ar" d="M86 44 A17 17 0 1 1 74 19"/><polygon class="arf" points="68,15 78,13 75,23"/>'),
+    "有酸素": sv('<line class="eq" x1="12" y1="106" x2="108" y2="106" stroke-width="3"/>'
+      + '<path class="eq" d="M14 96 L94 66" stroke-width="7"/>'
+      + '<path class="eq" d="M94 66 L104 42" stroke-width="5"/>'
+      + '<circle class="hd" cx="50" cy="38" r="7"/>'
+      + '<path class="sk" d="M50 45 L54 66 L40 84"/><path class="sk" d="M54 66 L66 80"/>'
+      + '<path class="sk" d="M51 52 L42 60"/><path class="sk" d="M51 52 L62 55"/>'
+      + '<path class="ar" d="M22 62 L36 57"/><polygon class="arf" points="44,54 33,52 36,62"/>'),
+    "静的ストレッチ": sv('<line class="eq" x1="12" y1="96" x2="108" y2="96" stroke-width="3"/>'
+      + '<circle class="ghf" cx="41" cy="52" r="6"/><path class="gh" d="M40 58 L36 90"/>'
+      + '<path class="sk" d="M34 92 L88 92"/>'
+      + '<path class="sk" d="M36 90 L64 66"/>'
+      + '<circle class="hd" cx="70" cy="62" r="7"/>'
+      + '<path class="sk" d="M56 72 L84 86"/>'
+      + '<path class="ar" d="M50 46 A26 26 0 0 1 68 50"/><polygon class="arf" points="76,53 68,44 65,54"/>'),
+  };
+  EX_SVG["ケーブルシーテッドロー or ダンベルロー"] = EX_SVG["ケーブルシーテッドロー"];
+  EX_SVG["ショルダープレス"] = EX_SVG["ショルダープレス（スミス）"];
+  const exImgUrl = (base) => {
+    const u = (S.exImgUser && S.exImgUser[base]) || EX_IMG[base] || "";
+    return (u && !S.imgFail[base]) ? u : "";
+  };
+  const gImgSearch = (q) =>
+    "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(q);
+  const exBase = (name) => name.split(" ★")[0];
 
-  const GYM_ORDER = ["pushA", "pullA", "pushB", "pullB"];
+  const GYM_ORDER = ["fullA", "fullB"];
 
   const WD = ["日","月","火","水","木","金","土"];
   const pad = (n) => String(n).padStart(2, "0");
@@ -204,110 +413,63 @@
   function dayTypeOf(d) {
     if (hol(d)) return "holiday";
     const w = d.getDay();
-    if (w === 1) return "pushA";
-    if (w === 2) return "pullA";
+    if (w === 1 || w === 4) return "fullA";
+    if (w === 2 || w === 5) return "fullB";
     if (w === 3) return "rest";
-    if (w === 4) return "pushB";
-    if (w === 5) return "pullB";
     return "free";
   }
   const isGym = (t) => GYM_ORDER.indexOf(t) >= 0;
 
   /* ============ トレーニングメニュー v7（4分割・上半身メイン） ============ */
   const MENUS = {
-    pushA: {
-      day: "月曜",
-      total: "21セット／トレ93分",
-      vol: "胸7・肩6・三頭3・四頭3・腹2",
+    fullA: {
+      day: "月曜・木曜",
+      total: "21セット／トレ90分",
+      vol: "四頭3・胸8・背中3・肩中3・三頭2・二頭2・腹2",
       rows: [
         ["①","動的ストレッチ","腕回し・股関節回し・レッグスイング（静的はやらない）","5分","—"],
-        ["②","ベンチプレス ★伸ばす日","計40kg（バー20＋両側10）","4 × 8〜12","3分"],
-        ["③","インクラインダンベルプレス","片手9kg／ベンチ角度30度","3 × 8〜12","2分"],
-        ["④","スクワット","計45kg（バー20＋両側12.5）／ラック高さ28／セーフティ高さ（初回に記録）","3 × 8〜12","3分"],
-        ["⑤","ショルダープレス（スミス）","計35kg（バー20＋片側7.5）／背もたれ85度／セーフティ高さ11","3 × 8〜12","2分"],
-        ["⑥","サイドレイズ","片手5kg","3 × 12〜15","2分"],
-        ["⑦","トライセプス・プレスダウン","ロープ・15kg／高さ31","3 × 10〜15","2分"],
-        ["⑧","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","60秒"],
-        ["⑨","有酸素","トレッドミル 傾斜10%・4.5km/h","17分","—"],
-        ["⑩","静的ストレッチ","胸・肩・三頭・四頭／各20〜30秒×2","10分","—"],
-      ],
-      memo: [
-        "②が4セット全部12回に届いたら、<b>月木とも42.5kgに上げて8回スタートに戻す</b>。8/3は12/12/12/10で4セット目が届かず同重量継続",
-        "②は3セット目からフォームが崩れやすい。各セット1〜2回残す感覚で通す",
-        "④は太もも床平行の深さをキープ。<b>プッシュ日に置くのは、腰と握力が温存されているうちに済ませるため</b>。セーフティは最下点より少し下に設定して位置番号を記録する",
-        "⑤のスミスのバー重量は「おそらく20kg」のまま。<b>プレートを外した状態で実測を確認する</b>",
-        "⑥5kgは現状かなりきつい。重量は据え置きで15回まで積む",
-        "⑦は少し尻を引いて肘が90度になる高さ（31）。木曜のオーバーヘッドと肘の位置が逆で、こちらは三頭が縮んだ側で効く",
-        "<b>⑥と⑦は交互に回すと時短になる</b>",
-      ],
-    },
-    pullA: {
-      day: "火曜",
-      total: "17セット／トレ76分",
-      vol: "背中7・肩後3・二頭系5・腹2",
-      rows: [
-        ["①","動的ストレッチ","腕回し・肩甲骨まわり","5分","—"],
-        ["②","ラットプルダウン","40kg／シート高さ（初回に記録）／パッド位置（初回に記録）","4 × 8〜12","3分"],
-        ["③","ダンベルロー","片手14〜16kg／ベンチ角度（初回に記録）","3 × 8〜12","2分"],
-        ["④","リバースフライ","ペクトラルマシン／シート高さ（初回に記録）／アーム開始位置（初回に記録）","3 × 12〜15","2分"],
-        ["⑤","インクラインダンベルカール","片手6〜8kg／ベンチ角度（初回に記録）","3 × 8〜12","2分"],
-        ["⑥","ハンマーカール","片手6〜8kg","2 × 10〜15","2分"],
-        ["⑦","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","60秒"],
-        ["⑧","有酸素","トレッドミル 傾斜10%・4.5km/h","15分","—"],
-        ["⑨","静的ストレッチ","広背筋・二頭・前腕","10分","—"],
-      ],
-      memo: [
-        "②は肩を下げ、肘で引く。順手・肩幅1.5倍",
-        "<b>②③④⑤のマシン・ベンチ設定は初回に必ず記録する。</b>設定が変わると重量の比較が成立しない",
-        "⑤インクラインは上腕が体の後ろに来るので、二頭長頭が伸びた位置で負荷が乗る。フラットより有利",
-        "⑥ハンマーは腕橈骨筋と上腕筋。二頭の下に潜り込む筋肉なので腕の太さに効く",
-        "<b>④と⑤は交互に回すと時短になる</b>",
-      ],
-    },
-    pushB: {
-      day: "木曜",
-      total: "19セット／トレ85分",
-      vol: "胸5・肩6・三頭3・ハム3・腹2",
-      rows: [
-        ["①","動的ストレッチ","腕回し・股関節回し・レッグスイング","5分","—"],
-        ["②","ベンチプレス ★維持の日","計40kg（バー20＋両側10）","3 × 8〜12","3分"],
-        ["③","インクラインダンベルプレス","片手9kg／ベンチ角度30度","2 × 8〜12","2分"],
-        ["④","ルーマニアンデッドリフト","計40〜50kg","3 × 8〜10","3分"],
-        ["⑤","ショルダープレス（スミス）","計35kg（バー20＋片側7.5）／背もたれ85度／セーフティ高さ11","3 × 8〜12","2分"],
-        ["⑥","サイドレイズ","片手5kg","3 × 12〜15","2分"],
-        ["⑦","オーバーヘッド・トライセプスエクステンション","ダンベル両手持ち or ケーブル／重量（初回に記録）","3 × 10〜15","2分"],
+        ["②","スクワット","計45kg（バー20＋両側12.5）／ラック高さ28／セーフティ高さ（初回に記録）","3 × 8〜12","3分"],
+        ["③","ベンチプレス ★伸ばす日","計40kg（バー20＋両側10）","4 × 8〜12","3分"],
+        ["④","ダンベルロー","片手14〜16kg／シーテッドローが2階にあればそちらでも可","3 × 8〜12","2分"],
+        ["⑤","サイドレイズ","片手5kg","3 × 12〜15","2分"],
+        ["⑥","トライセプス・プレスダウン","ロープ・15kg／高さ31","2 × 10〜15","2分"],
+        ["⑦","プリチャーカール","計15kg（EZバー10＋両側2.5）","2 × 8〜12","2分"],
         ["⑧","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","60秒"],
         ["⑨","有酸素","トレッドミル 傾斜10%・4.5km/h","15分","—"],
-        ["⑩","静的ストレッチ","胸・肩・三頭・ハム","10分","—"],
+        ["⑩","静的ストレッチ","四頭・胸・三頭・肩／各20〜30秒×2","10分","—"],
       ],
       memo: [
-        "②は維持が目的なので追い込まない。きつければ37.5kgに落として回数優先",
-        "④は膝を軽く曲げたまま固定し、尻を後ろに引く。ハムのストレッチを感じる所で折り返す",
-        "④<b>握力が先に落ちるならストラップを使う。</b>手が制限要因になっている状態は、ハムではなく握力を鍛えているだけ",
-        "⑦は肘が頭上＝三頭長頭が伸びた位置で負荷がかかる。月曜のプレスダウンと役割が違うので、両方やる意味がある",
-        "<b>⑥と⑦は交互に回すと時短になる</b>",
+        "②が最初なのは最重量・最技術の種目だから。全身が新鮮なうちにやる。太もも床平行キープ",
+        "③が4セット全部12回に届いたら、<b>A・Bとも42.5kgに上げて8回スタートに戻す</b>。判定は月曜で見る",
+        "④シーテッドローをラットプルで置き換えない。水平引きの枠が消える",
+        "⑤⑥は交互に回すと時短。⑥は肘を脇に固定して前腕だけで押し切る",
+        "⑦はダンベルロー後なので前回の?/9/9より1〜2回落ちても普通。8回を割ったら重量を下げる",
+        "⑦2セットとも12回に届いたら1.25kgプレートを探して計17.5kgへ",
       ],
     },
-    pullB: {
-      day: "金曜",
-      total: "17セット／トレ77分",
-      vol: "背中7・肩後3・二頭3・ハム2・腹2",
+    fullB: {
+      day: "火曜・金曜",
+      total: "18セット／トレ85分",
+      vol: "ハム5・肩前中3・背中3・二頭2・三頭2・腹2",
       rows: [
-        ["①","動的ストレッチ","腕回し・肩甲骨まわり","5分","—"],
-        ["②","ケーブルシーテッドロー","空いてなければダンベルロー／重量（初回に記録）","4 × 8〜12","3分"],
-        ["③","ラットプルダウン","40kg／シート高さ・パッド位置は火曜と同じ設定で","3 × 8〜12","2〜3分"],
-        ["④","リバースフライ","ペクトラルマシン／設定は火曜と同じ","3 × 12〜15","2分"],
-        ["⑤","プリチャーカール","重量（初回に記録）／シート高さ（初回に記録）","3 × 8〜12","2分"],
-        ["⑥","レッグカール","重量（初回に記録）／パッド位置（初回に記録）","2 × 10〜15","2分"],
-        ["⑦","クランチ","−20度・重り5kg／足の高さ1","2 × 10〜15","60秒"],
-        ["⑧","有酸素","トレッドミル 傾斜10%・4.5km/h","15分","—"],
-        ["⑨","静的ストレッチ","広背筋・二頭・ハム","10分","—"],
+        ["①","動的ストレッチ","腕回し・股関節回し・レッグスイング","5分","—"],
+        ["②","ルーマニアンデッドリフト","計40〜50kg／膝軽く固定・尻を引く","3 × 8〜10","3分"],
+        ["③","ショルダープレス","DRAXプレートロードマシン／片側重量・シート高さ（初回に記録）","3 × 8〜12","3分"],
+        ["④","ラットプルダウン","40kg／シート高さ・パッド位置（初回に記録）","3 × 8〜12","3分"],
+        ["⑤","インクラインダンベルカール","片手6〜8kg／ベンチ30度","2 × 8〜12","2分"],
+        ["⑥","オーバーヘッド・トライセプスエクステンション","計15kg（EZバー10＋両側2.5）","2 × 10〜15","2分"],
+        ["⑦","レッグカール","2階。重量・パッド位置（初回に記録）","2 × 10〜15","2分"],
+        ["⑧","クランチ","−20度・重り5kg／足の高さ1。2階に行く前に済ませてもよい","2 × 10〜15","60秒"],
+        ["⑨","有酸素","トレッドミル 傾斜10%・4.5km/h（バイクでも可）","15分","—"],
+        ["⑩","静的ストレッチ","ハム・肩・二頭・広背筋／各20〜30秒×2","10分","—"],
       ],
       memo: [
-        "②は肩甲骨を寄せてから肘を引く。先に腕で引くと背中に乗らない",
-        "⑥<b>大腿二頭筋短頭は膝しかまたがないので、木曜のルーマニアンDLでは刺激が入らない。</b>ここで埋める2セット",
-        "<b>④と⑤は交互に回すと時短になる</b>",
-        "②⑤⑥は初回に重量と設定を記録する",
+        "②握力が先に落ちるならストラップ。ハムのストレッチを感じる所で折り返す",
+        "③スミスから変更。左右独立なので弱い側（左）に合わせる。<b>スミスの35kgと互換性なし。初回は片側5〜10kgから探る</b>",
+        "④は肩を下げ、肘で引く。順手・肩幅1.5倍",
+        "⑤⑥は交互に回すと時短。⑤は上腕を体の後ろに垂らして二頭長頭を伸ばす",
+        "⑦レッグエクステンション（前もも）とは別物。かかとを尻へ巻き上げるマシンを2階で探す",
+        "⑦が見つからない日はレッグエクステンション35kg（深さ4・付け根1・足首3）で四頭に振り替え可",
       ],
     },
   };
@@ -315,60 +477,42 @@
   const COMMON_RULES =
     "<b>追い込み度</b>：限界の1〜2回手前（RIR1〜2）。単関節はRIR0〜1<br>" +
     "<b>重量UP</b>：全セットが上限レップに届いたら 上半身+2.5kg／下半身+5kg。届いたら下限レップに戻す<br>" +
-    "<b>セット間休憩</b>：メニュー表の表記どおり（コンパウンド3分／その他の種目2分／腹筋60秒）<br>" +
-    "<b>種目間休憩</b>：移動・重量セット込みで3分目安<br>" +
-    "腹筋は必ず最後。有酸素は筋トレの後。5回でばてる重量は使わない<br>" +
-    "<b>最初の2週は</b>火曜と金曜の単関節種目を各1セット落とす。背中7→14・二頭3→8と倍増するので、いきなりフルは踏まない";
+    "<b>並び順</b>：重い多関節→押す・引くを交互→単関節→腹筋。腹筋を先にやると体幹が抜けてスクワットが危ない<br>" +
+    "<b>セット間休憩</b>：コンパウンド3分／その他2分／腹筋60秒。種目間は移動込み3分目安<br>" +
+    "有酸素は筋トレの後。5回でばてる重量は使わない<br>" +
+    "<b>ベンチの判定は月曜</b>。月曜4セット全部12回→A・B同時に42.5kgへ";
 
   const WEEK_VOL = [
-    ["胸", "13", "12"],
-    ["背中", "7", "14"],
-    ["肩 前・中部", "6", "12"],
-    ["肩 後部", "3", "6"],
-    ["上腕三頭筋", "3", "6"],
-    ["上腕二頭筋系", "3", "8"],
-    ["腹筋", "7", "8"],
-    ["大腿四頭筋", "10", "3"],
-    ["ハムストリング", "6", "5"],
+    ["胸", "12", "8"],
+    ["背中", "14", "12"],
+    ["肩 前・中部", "12", "12"],
+    ["上腕三頭筋", "6", "8"],
+    ["上腕二頭筋", "8", "8"],
+    ["大腿四頭筋", "3", "6"],
+    ["ハムストリング", "5", "10"],
+    ["腹筋", "8", "8"],
   ];
 
   /* ============ 記録タブの種目定義 ============ */
   const LOG_EX = {
-    pushA: [
-      { k:"bench",    n:"ベンチプレス",         w:"40", u:"計kg" },
-      { k:"incline",  n:"インクラインDBプレス",  w:"9",  u:"片手kg" },
+    fullA: [
       { k:"squat",    n:"スクワット",           w:"45", u:"計kg" },
-      { k:"shoulder", n:"ショルダープレス",      w:"35", u:"計kg" },
+      { k:"bench",    n:"ベンチプレス",         w:"40", u:"計kg" },
+      { k:"row",      n:"ダンベルロー",         w:"14", u:"片手kg" },
       { k:"side",     n:"サイドレイズ",         w:"5",  u:"片手kg" },
       { k:"pushdown", n:"プレスダウン",         w:"15", u:"kg" },
+      { k:"preacher", n:"プリチャーカール",     w:"15", u:"計kg" },
       { k:"crunch",   n:"クランチ",             w:"5",  u:"kg" },
-      { k:"cardio",   n:"有酸素",               w:"10%/4.5", u:"傾斜/速度", ph:"17分" },
+      { k:"cardio",   n:"有酸素",               w:"10%/4.5", u:"傾斜/速度", ph:"15分" },
     ],
-    pullA: [
-      { k:"lat",     n:"ラットプルダウン",       w:"40", u:"kg" },
-      { k:"row",     n:"ダンベルロー",          w:"14", u:"片手kg" },
-      { k:"revfly",  n:"リバースフライ",        w:"",   u:"kg" },
-      { k:"curl",    n:"インクラインDBカール",   w:"6",  u:"片手kg" },
-      { k:"hammer",  n:"ハンマーカール",        w:"6",  u:"片手kg" },
-      { k:"crunch",  n:"クランチ",              w:"5",  u:"kg" },
-      { k:"cardio",  n:"有酸素",                w:"10%/4.5", u:"傾斜/速度", ph:"15分" },
-    ],
-    pushB: [
-      { k:"bench",    n:"ベンチプレス",          w:"40", u:"計kg" },
-      { k:"incline",  n:"インクラインDBプレス",   w:"9",  u:"片手kg" },
+    fullB: [
       { k:"rdl",      n:"ルーマニアンDL",        w:"40", u:"計kg" },
-      { k:"shoulder", n:"ショルダープレス",       w:"35", u:"計kg" },
-      { k:"side",     n:"サイドレイズ",          w:"5",  u:"片手kg" },
-      { k:"ohext",    n:"オーバーヘッド三頭",     w:"",   u:"kg" },
-      { k:"crunch",   n:"クランチ",              w:"5",  u:"kg" },
-      { k:"cardio",   n:"有酸素",                w:"10%/4.5", u:"傾斜/速度", ph:"15分" },
-    ],
-    pullB: [
-      { k:"row",      n:"シーテッドロー",        w:"",   u:"kg" },
+      { k:"shoulder", n:"ショルダープレス（DRAX）", w:"", u:"片側kg" },
       { k:"lat",      n:"ラットプルダウン",      w:"40", u:"kg" },
-      { k:"revfly",   n:"リバースフライ",        w:"",   u:"kg" },
-      { k:"preacher", n:"プリチャーカール",      w:"",   u:"kg" },
-      { k:"legcurl",  n:"レッグカール",          w:"",   u:"kg" },
+      { k:"curl",     n:"インクラインDBカール",   w:"6",  u:"片手kg" },
+      { k:"ohext",    n:"オーバーヘッド三頭",     w:"15", u:"計kg" },
+      { k:"legcurl",  n:"レッグカール（2階）",   w:"",   u:"kg" },
+      { k:"legext",   n:"レッグエクステンション", w:"35", u:"kg" },
       { k:"crunch",   n:"クランチ",              w:"5",  u:"kg" },
       { k:"cardio",   n:"有酸素",                w:"10%/4.5", u:"傾斜/速度", ph:"15分" },
     ],
@@ -376,10 +520,8 @@
 
   /* ============ ジム日ごとの終了時刻 ============ */
   const GYM_TIME = {
-    pushA: { end:M(21,8),  shake:M(21,10), dinner:M(21,55), bath:M(22,30), freeT:M(23,0) },
-    pullA: { end:M(20,51), shake:M(20,55), dinner:M(21,30), bath:M(22,15), freeT:M(22,45) },
-    pushB: { end:M(21,0),  shake:M(21,5),  dinner:M(21,45), bath:M(22,20), freeT:M(22,50) },
-    pullB: { end:M(20,52), shake:M(20,55), dinner:M(21,30), bath:M(22,15), freeT:M(22,45) },
+    fullA: { end:M(21,5),  shake:M(21,10), dinner:M(21,55), bath:M(22,30), freeT:M(23,0) },
+    fullB: { end:M(21,0),  shake:M(21,5),  dinner:M(21,45), bath:M(22,20), freeT:M(22,50) },
   };
 
   /* ============ タイムライン ============ */
@@ -476,7 +618,7 @@
     "2026-08-03": { w:"72.00", bf:"20.40", mm:"54.30", note:"内臓脂肪7.0・基礎代謝1644・筋肉スコア−1" },
   };
   const SEED_GYM = {
-    "2026-08-03": { type:"pushA", ex:{
+    "2026-08-03": { type:"fullA", ex:{
       bench:{w:"40", r:"12/12/12/10"}, incline:{w:"8", r:"12/12/12"},
       squat:{w:"", r:""},
       shoulder:{w:"35", r:"10/10/10"}, side:{w:"5", r:"12/12/12"},
@@ -490,7 +632,7 @@
   const S = {
     now:new Date(), tab:"today", checked:{}, bodyLog:{}, gymLog:{},
     calY:0, calM:0, selDate:"", savedMsg:"", exportText:"", copied:false,
-    trainView:"", logType:"", zoom:"",
+    trainView:"", logType:"", zoom:"", imgFail:{}, exImgUser:{},
     form:{ bDate:"", bW:"", bF:"", bM:"", bNote:"", gDate:"", gNote:"" },
     logEx:{},
   };
@@ -501,16 +643,17 @@
     const b = await store.get("bodylog");
     S.bodyLog = b ? JSON.parse(b) : {};
     if (!Object.keys(S.bodyLog).length) { S.bodyLog = JSON.parse(JSON.stringify(SEED_BODY)); await store.set("bodylog", JSON.stringify(S.bodyLog)); }
+    const ei = await store.get("eximg");
+    S.exImgUser = ei ? JSON.parse(ei) : {};
     const g = await store.get("gymlog");
     S.gymLog = g ? JSON.parse(g) : {};
     if (!Object.keys(S.gymLog).length) { S.gymLog = JSON.parse(JSON.stringify(SEED_GYM)); await store.set("gymlog", JSON.stringify(S.gymLog)); }
-    /* 旧タイプ（push/pull/legs）が残っていれば新タイプへ寄せる */
+    /* 旧タイプが残っていれば全身法A/Bへ寄せる（記録の中身は保持） */
     let migrated = false;
+    const MIG = { push:"fullA", pushA:"fullA", legs:"fullA", pull:"fullB", pullA:"fullB", pushB:"fullB", pullB:"fullB" };
     Object.keys(S.gymLog).forEach((d) => {
       const r = S.gymLog[d];
-      if (r.type === "push") { r.type = "pushA"; migrated = true; }
-      else if (r.type === "pull") { r.type = "pullA"; migrated = true; }
-      else if (r.type === "legs") { r.type = "pushB"; migrated = true; }
+      if (MIG[r.type]) { r.type = MIG[r.type]; migrated = true; }
     });
     if (migrated) await store.set("gymlog", JSON.stringify(S.gymLog));
   }
@@ -627,7 +770,7 @@
       /* 週の並び */
       h += '<div class="sect"><div class="card cardp"><div class="stitle">今週の並び</div>' +
         '<div style="font-size:12.5px;line-height:2">';
-      [["月","pushA"],["火","pullA"],["水","rest"],["木","pushB"],["金","pullB"],["土日","free"]].forEach(([d, ty]) => {
+      [["月","fullA"],["火","fullB"],["水","rest"],["木","fullA"],["金","fullB"],["土日","free"]].forEach(([d, ty]) => {
         const di = DAY_TYPES[ty];
         h += '<div style="display:flex;gap:10px;align-items:center">' +
           '<span style="color:var(--sub);min-width:28px">' + d + "</span>" +
@@ -663,7 +806,7 @@
 
     /* ---- トレ ---- */
     if (S.tab === "train") {
-      const view = S.trainView || (isGym(t) ? t : "pushA");
+      const view = S.trainView || (isGym(t) ? t : "fullA");
       const m = MENUS[view];
       const vAcc = DAY_TYPES[view].raw;
 
@@ -681,10 +824,15 @@
         '<div style="font-size:11px;color:var(--sub)">' + m.total + "</div></div>";
       h += '<div class="card" style="overflow:hidden">';
       m.rows.forEach((r) => {
-        const im = EX_IMG[r[1]];
-        const thumb = im
-          ? '<img class="exthumb" data-img="' + esc(im[0]) + '" data-q="' + esc(im[1]) + '" alt="" src="' + commonsImg(im[0], 180) + '">'
-          : "";
+        const base = exBase(r[1]);
+        const url = exImgUrl(base);
+        const svg = EX_SVG[base];
+        let thumb = "";
+        if (url) {
+          thumb = '<div class="exthumb" data-zoom="' + esc(base) + '"><img data-imgfail="' + esc(base) + '" src="' + esc(url) + '" alt=""></div>';
+        } else if (svg) {
+          thumb = '<div class="exthumb" data-zoom="' + esc(base) + '">' + svg + "</div>";
+        }
         h += '<div class="exrow"><div class="exwrap"><div class="exbody">' +
           '<div class="exhead"><span class="exnum" style="color:' + vAcc + '">' + r[0] + "</span>" +
           '<span class="exname">' + esc(r[1]) + '</span><span class="exset">' + esc(r[3]) + "</span></div>" +
@@ -693,9 +841,9 @@
       });
       h += "</div>";
       h += '<div style="font-size:10.5px;color:var(--sub);margin-top:6px;line-height:1.6">' +
-        '種目イラスト：<a href="https://commons.wikimedia.org/wiki/Category:Weight_training_diagrams" target="_blank" rel="noopener" style="color:var(--sub)">Wikimedia Commons</a>（Everkinetic）／' +
-        '<a href="https://creativecommons.org/licenses/by-sa/3.0/deed.ja" target="_blank" rel="noopener" style="color:var(--sub)">CC BY-SA 3.0</a>。表示サイズのみ変更。' +
-        '枠が「画像を探す」になっている種目は、タップしてCommonsで正しいファイル名を調べ、EX_IMG に差し替えてください。</div>';
+        'イラストはタップで拡大。初期画像は<a href="https://commons.wikimedia.org/wiki/Category:Weight_training_diagrams" target="_blank" rel="noopener" style="color:var(--sub)">Wikimedia Commons</a>' +
+        '（Everkinetic／CC BY-SA 3.0）。読み込めない種目は自動で内蔵の簡易図に切り替わる。' +
+        '実写に変えたい種目は、拡大表示の「写真URLを登録」から。</div>';
       h += '<div style="font-size:11.5px;color:' + vAcc + ';margin-top:8px;text-align:right">この日の内訳：' + m.vol + "</div>";
       h += '<div class="memo"><div style="color:var(--text);font-weight:700;margin-bottom:6px">メモ</div>' +
         m.memo.map((x) => "・" + x).join("<br>") + "</div>";
@@ -711,7 +859,7 @@
           '<span style="flex:1;text-align:right;font-weight:700;color:' + (up?"var(--done)":down?"var(--red)":"var(--text)") + '">' + b + "</span></div>";
       });
       h += '<div style="font-size:12px;color:var(--sub);margin-top:10px;line-height:1.7">' +
-        '総セット数は61 → 74で+21%。四頭とハムは<b style="color:var(--text)">維持のみ</b>の構成。増やしたくなったら金曜をそのまま下半身日に差し替えるのが早い。</div></div>';
+        '4分割→全身法A/B。胸は12→8に減る（気になる日はA日ベンチ後にインクラインDBプレス2セット追加で12に戻る）。脚はスクワット・RDLが固定枠になり四頭6・ハム10へ。</div></div>';
 
       h += '<button class="btn ghost" data-tab="log">この日の記録を入力する</button></div>';
     }
@@ -797,8 +945,8 @@
       });
       h += "</div>";
       h += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--sub)">';
-      [["#F5A524","月 プッシュA"],["#A78BFA","火 プルA"],["#4AA8DE","水 休養（残業）"],["#FB923C","木 プッシュB"],
-       ["#818CF8","金 プルB"],["#8FDE4A","土日 自由"],["#F87171","祝日"],["#4ADE80","記録あり"]].forEach(([c,l]) => {
+      [["#F5A524","月木 全身A"],["#818CF8","火金 全身B"],["#4AA8DE","水 休養（残業）"],
+       ["#8FDE4A","土日 自由"],["#F87171","祝日"],["#4ADE80","記録あり"]].forEach(([c,l]) => {
         h += '<span style="display:flex;align-items:center;gap:4px"><span class="dot" style="width:7px;height:7px;background:' + c + '"></span>' + l + "</span>";
       });
       h += "</div>";
@@ -912,12 +1060,26 @@
   /* 画像の拡大表示 */
   function zoomOverlay() {
     if (!S.zoom) return "";
-    return '<div class="ovl" data-act="closeZoom">' +
-      '<img src="' + commonsImg(S.zoom, 900) + '" alt="">' +
-      '<div class="ovlcap">' + esc(S.zoom) + "<br>" +
-      'Wikimedia Commons ／ <a href="https://creativecommons.org/licenses/by-sa/3.0/deed.ja" target="_blank" rel="noopener">CC BY-SA 3.0</a>　' +
-      '<a href="' + commonsPage(S.zoom) + '" target="_blank" rel="noopener">ファイルページ</a><br>' +
-      "どこかをタップで閉じる</div></div>";
+    const k = S.zoom;
+    const url = exImgUrl(k);
+    const svg = EX_SVG[k];
+    const hasUser = !!(S.exImgUser && S.exImgUser[k]);
+    const inner = url
+      ? '<img src="' + esc(url) + '" alt="">'
+      : (svg ? '<div class="ovlsvg">' + svg + "</div>" : "");
+    let btns = '<div class="ovlbtns">' +
+      '<button class="ovlbtn" data-act="setimg" data-name="' + esc(k) + '">' + (hasUser ? "写真URLを変更" : "写真URLを登録") + "</button>" +
+      '<a class="ovlbtn" style="text-decoration:none" href="' + esc(gImgSearch(k + " やり方 フォーム")) + '" target="_blank" rel="noopener">Webで画像を探す</a>';
+    if (hasUser) btns += '<button class="ovlbtn" data-act="delimg" data-name="' + esc(k) + '">削除（イラストに戻す）</button>';
+    btns += "</div>";
+    let credit = "";
+    if (url && url.indexOf("commons.wikimedia.org") >= 0) {
+      const fp = url.replace("Special:FilePath/", "File:").split("?")[0];
+      credit = '　<a href="' + esc(fp) + '" target="_blank" rel="noopener">Wikimedia Commons</a>／' +
+        '<a href="https://creativecommons.org/licenses/by-sa/3.0/deed.ja" target="_blank" rel="noopener">CC BY-SA 3.0</a>';
+    }
+    return '<div class="ovl" data-act="closeZoom">' + inner + btns +
+      '<div class="ovlcap"><b style="color:var(--text)">' + esc(k) + "</b><br>余白タップで閉じる" + credit + "</div></div>";
   }
 
   /* ============ フォーム退避 ============ */
@@ -938,7 +1100,7 @@
     const list = checklistOf(t);
     const bd = Object.keys(S.bodyLog).sort(), gd = Object.keys(S.gymLog).sort();
     let txt = "【フィットネス記録データ】\n出力：" + dk(now) + " " + pad(now.getHours()) + ":" + pad(now.getMinutes()) +
-      "\n構成：4分割（月プッシュA／火プルA／水休養／木プッシュB／金プルB）上半身メイン・脚は維持のみ" +
+      "\n構成：全身法A/B（月木=A／火金=B／水休養）" +
       "\n現在：増量期（トリガー 体重73〜75kg または 体脂肪率21%超）\n最終目標：体脂肪率15%\n\n";
 
     txt += "■ 体組成（" + bd.length + "件）\n";
@@ -998,20 +1160,12 @@
         await store.set("check:" + dk(S.now), JSON.stringify(S.checked));
       };
     });
-    document.querySelectorAll("[data-img]").forEach((el) => {
-      const fallback = () => {
-        const q = el.dataset.q || "";
-        const a = document.createElement("a");
-        a.className = "exmiss";
-        a.target = "_blank";
-        a.rel = "noopener";
-        a.href = commonsSearch(q);
-        a.textContent = "画像を探す";
-        if (el.parentNode) el.parentNode.replaceChild(a, el);
-      };
-      el.onerror = fallback;
-      if (el.complete && el.naturalWidth === 0) fallback();
-      el.onclick = () => { S.zoom = el.dataset.img; render(); };
+    document.querySelectorAll("[data-zoom]").forEach((el) => {
+      el.onclick = () => { S.zoom = el.dataset.zoom; render(); };
+    });
+    document.querySelectorAll("[data-imgfail]").forEach((el) => {
+      el.onerror = () => { S.imgFail[el.dataset.imgfail] = true; render(); };
+      if (el.complete && el.naturalWidth === 0) { S.imgFail[el.dataset.imgfail] = true; render(); }
     });
     document.querySelectorAll("[data-sel]").forEach((el) => {
       el.onclick = () => { S.selDate = el.dataset.sel; render(); };
@@ -1024,8 +1178,32 @@
       loadLogForm(); render();
     };
     document.querySelectorAll("[data-act]").forEach((el) => {
-      el.onclick = async () => {
+      el.onclick = async (ev) => {
         const act = el.dataset.act;
+        if (act === "setimg") {
+          if (ev && ev.stopPropagation) ev.stopPropagation();
+          const name = el.dataset.name;
+          const cur = (S.exImgUser && S.exImgUser[name]) || "";
+          const u = window.prompt("画像のURLを貼り付け（Google画像検索で画像を長押し→「画像のリンクをコピー」）", cur);
+          if (u === null) return;
+          const trimmed = u.trim();
+          if (!trimmed) return;
+          if (!/^https?:\/\//.test(trimmed)) { flash("http(s)で始まるURLを貼ってください"); return; }
+          S.exImgUser[name] = trimmed;
+          delete S.imgFail[name];
+          await store.set("eximg", JSON.stringify(S.exImgUser));
+          render();
+          return;
+        }
+        if (act === "delimg") {
+          if (ev && ev.stopPropagation) ev.stopPropagation();
+          const name = el.dataset.name;
+          delete S.exImgUser[name];
+          delete S.imgFail[name];
+          await store.set("eximg", JSON.stringify(S.exImgUser));
+          render();
+          return;
+        }
         if (act === "closeZoom") { S.zoom = ""; render(); return; }
         if (act === "prevM" || act === "nextM") {
           let y = S.calY, mo = S.calM + (act === "nextM" ? 1 : -1);
@@ -1077,8 +1255,8 @@
     S.selDate = dk(d);
     S.form.bDate = dk(d); S.form.gDate = dk(d);
     const ty = dayTypeOf(d);
-    S.logType = isGym(ty) ? ty : "pushA";
-    S.trainView = isGym(ty) ? ty : "pushA";
+    S.logType = isGym(ty) ? ty : "fullA";
+    S.trainView = isGym(ty) ? ty : "fullA";
     await loadAll();
     loadLogForm();
     render();
